@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Since Android 9 the platform blocks plain HTTP by default, and it is right to.
+
+    campus.sma-techno.net is currently served over http://, so without an exception here
+    every request from the app fails with a cleartext error that looks like the server being
+    down. The exception is scoped to that one host: every other destination still requires
+    HTTPS, so a mistake elsewhere in the app cannot quietly downgrade.
+
+    This should be deleted once the site has a certificate. The app carries login tokens that
+    grant access to a child's location history; over plain HTTP anyone on the same wifi can
+    read them. MyASP.NET issues free Let's Encrypt certificates, so this is a short task, and
+    until it is done treat this file as a known outstanding risk rather than a setting.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">campus.sma-techno.net</domain>
+    </domain-config>
+
+    <!-- Local development against a machine on the same network. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

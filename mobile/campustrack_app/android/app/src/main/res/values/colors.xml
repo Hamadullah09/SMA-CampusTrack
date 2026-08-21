@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The adaptive icon sits on white: the logo's orange figure is drawn for a light
+         background and loses its edges on a coloured one. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

@@ -1,12 +1,12 @@
 name: Build Android APK
 
-# Run on demand, or whenever a version tag is pushed. Kept separate from CI because a
-# release build takes several minutes and nobody needs it on every pull request.
+# Run on demand, or whenever a version tag is pushed. Kept out of CI because a release
+# build takes several minutes and nobody needs it on every pull request.
 on:
   workflow_dispatch:
     inputs:
       build_number:
-        description: 'Android build number (must exceed the last published build)'
+        description: 'Android versionCode (must exceed the last published build)'
         required: true
         default: '1'
   push:
@@ -24,7 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The Gradle toolchain Flutter drives needs a JDK; the Flutter action does not bring one.
+      # The Gradle toolchain Flutter drives needs a JDK; the Flutter action does not bring
+      # one. 17 matches the sourceCompatibility in app/build.gradle.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -35,22 +36,6 @@ jobs:
           channel: stable
           cache: true
 
-      # The Android platform folder is generated rather than committed. `flutter create`
-      # on an existing project adds only what is missing and leaves lib/ and pubspec
-      # untouched, so this is safe to run every time.
-      #
-      # NOTE: a generated project carries the default application id
-      # (com.example.campustrack_app) and is signed with Flutter's debug key. That is fine
-      # for sideloading to test devices. Before handing the app to real families, commit a
-      # proper android/ folder with the school's application id and a release keystore --
-      # a debug-signed build cannot be upgraded in place by a later, properly signed one.
-      - name: Ensure Android platform files exist
-        run: |
-          if [ ! -d android ]; then
-            echo "No android/ folder; generating platform scaffolding."
-            flutter create --platforms=android --project-name campustrack_app .
-          fi
-
       - name: Resolve dependencies
         run: flutter pub get
 
@@ -58,26 +43,77 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Test
-        run: flutter test
-        # A project with no test/ directory should not fail the build.
-        continue-on-error: true
+        # A project with no test/ directory should not fail the release build.
+        run: flutter test || [ ! -d test ]
 
+      # The keystore arrives base64 encoded because a GitHub secret holds text, not a
+      # binary. It is written outside the workspace so it cannot be picked up by a later
+      # step that archives the build directory.
+      - name: Restore the signing key
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      # The app's API address is compiled in. Its default is the Android emulator's alias
+      # for the developer's own machine, so a release built without this points at nothing
+      # and fails to connect on every device. Set the API_BASE_URL repository variable
+      # (Settings > Secrets and variables > Actions > Variables) to override the default
+      # below without editing this file.
       - name: Build release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           BUILD_NUMBER="${{ github.event.inputs.build_number || github.run_number }}"
-          flutter build apk --release --build-number="$BUILD_NUMBER"
+          API_BASE_URL="${{ vars.API_BASE_URL || 'http://campus.sma-techno.net' }}"
+          echo "Building against $API_BASE_URL"
+
+          # A host not covered by network_security_config.xml is blocked by Android as
+          # cleartext, so a mismatch here fails on device rather than in this job.
+          case "$API_BASE_URL" in
+            http://*)
+              echo "::warning::Building against plain HTTP. Login tokens grant access to a child's location history and are readable by anyone on the same network. Move the site to HTTPS."
+              ;;
+          esac
+
+          flutter build apk --release \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      # An APK signed with the debug key installs fine and looks correct, then can never be
+      # upgraded in place by a properly signed build. That is expensive to discover after
+      # handing it to families, so the build fails here instead.
+      - name: Verify it is not debug signed
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          echo "Certificate:"
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
+
+          if grep -qi "CN=Android Debug" /tmp/certs.txt; then
+            echo "::error::This APK is signed with the Android debug key. Set the ANDROID_KEYSTORE_* secrets before distributing a build."
+            exit 1
+          fi
+          echo "Signed with a release key."
 
       - name: Report what was built
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
-          echo "### Android build" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Size | $(du -h "$APK" | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| SHA-256 | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Download the artefact below, then publish it from **Mobile app → Publish a build** in the admin portal." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Android build"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Application id | \`net.smatechno.campustrack\` |"
+            echo "| Version | $(grep '^version:' pubspec.yaml | cut -d' ' -f2) |"
+            echo "| versionCode | ${{ github.event.inputs.build_number || github.run_number }} |"
+            echo "| Size | $(du -h "$APK" | cut -f1) |"
+            echo "| SHA-256 | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |"
+            echo ""
+            echo "Download the artefact below, then publish it from **Mobile app → Publish a build** in the admin portal."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:

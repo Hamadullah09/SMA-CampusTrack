@@ -89,11 +89,11 @@ from the admin portal at **Mobile app → Publish a build**. Families download i
 `campus.sma-techno.net/mobile-app`, which is reachable without signing in, because a parent
 who has not got the app yet is exactly the person who needs that page.
 
-> **Before handing the app to real families**, commit a proper `android/` folder with the
-> school's own application id and a release keystore. The CI job currently generates the
-> Android project on the fly, which produces the default id `com.example.campustrack_app` and
-> signs with Flutter's debug key. A debug signed build cannot be upgraded in place by a
-> properly signed one later, so every family would have to uninstall and reinstall.
+The Android project is committed with the application id `net.smatechno.campustrack` and a
+signing configuration that reads the keystore from repository secrets. Set those secrets
+before the first release build: see [android-signing.md](android-signing.md). Until they are
+set the workflow signs with the debug key and then deliberately fails, because a debug signed
+build can never be upgraded in place by a properly signed one.
 
 ## When something is wrong
 

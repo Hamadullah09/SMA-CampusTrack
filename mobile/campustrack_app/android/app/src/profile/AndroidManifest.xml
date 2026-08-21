@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: the Flutter tool connects to the running app over a local
+         socket, which needs cleartext to the host machine. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

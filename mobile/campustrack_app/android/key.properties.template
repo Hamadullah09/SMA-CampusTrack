@@ -1,0 +1,36 @@
+# Release signing credentials.
+#
+# Copy this file to key.properties in the same folder and fill it in. That file is
+# gitignored and must stay that way: with the keystore and these passwords, anyone can
+# publish an update that Android will install over the real app.
+#
+# ---------------------------------------------------------------------------------------
+# Generating the keystore (do this once, on a machine you control):
+#
+#   keytool -genkeypair -v \
+#     -keystore sma-campus-track.jks \
+#     -storetype JKS \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias sma-campus-track \
+#     -dname "CN=SMA Campus Track, O=SMA Technology, L=, C=PK"
+#
+# keytool ships with any JDK (Android Studio bundles one at
+# <Android Studio>/jbr/bin/keytool). It will prompt for a password; choose a strong one
+# and store it in a password manager.
+#
+# -validity 10000 is about 27 years. Google Play requires a key valid until at least
+# 2033, and more importantly a key cannot be swapped later: an app signed with a new key
+# is a different app to Android and cannot upgrade the old one in place. Every family
+# would have to uninstall and reinstall, losing their session.
+#
+# BACK THE .jks FILE UP somewhere durable and private. Losing it means the app can never
+# be updated again, only replaced under a new application id.
+# ---------------------------------------------------------------------------------------
+
+# Path to the keystore. Relative paths resolve from the android/ folder; an absolute path
+# outside the repository is safer, because then the key cannot be committed by accident.
+storeFile=../../../keys/sma-campus-track.jks
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=sma-campus-track
+keyPassword=YOUR_KEY_PASSWORD

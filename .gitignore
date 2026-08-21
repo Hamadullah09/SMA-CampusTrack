@@ -25,9 +25,22 @@ dist/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-android/
 ios/
 *.iml
+
+# Android: the platform folder IS tracked -- it carries the application id, permissions and
+# signing configuration, and regenerating it would silently reset all three. Only the
+# machine-specific and secret parts are ignored.
+**/android/local.properties
+**/android/.gradle/
+**/android/app/google-services.json
+
+# Signing material. The keystore and its passwords must never be committed: together they
+# are enough to publish an update that Android installs over the real app.
+**/android/key.properties
+*.jks
+*.keystore
+keys/
 
 # Runtime artefacts
 logs/

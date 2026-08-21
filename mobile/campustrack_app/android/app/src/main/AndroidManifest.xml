@@ -1,0 +1,88 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- connectivity_plus reports whether the device is online before a sync is attempted. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- local_auth: biometric unlock for a returning parent. USE_FINGERPRINT covers
+         devices below API 28 where USE_BIOMETRIC does not exist. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- Android 13 made notifications opt-in. Without this the app is installed silently
+         muted and a parent never learns their child arrived. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Biometrics are a convenience, not a requirement: a device without a sensor must
+         still be able to install the app and sign in with a password. -->
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
+
+    <application
+        android:label="SMA Campus Track"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
+
+        <!--
+            FlutterFragmentActivity, not FlutterActivity. local_auth shows the system
+            biometric prompt, which is a fragment and requires a FragmentActivity host;
+            with the plain FlutterActivity the prompt throws at runtime rather than at
+            build time, so the failure would only appear on a real device.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- Swaps the launch theme for the app theme the moment Flutter has drawn its
+                 first frame, which is what stops the white flash on cold start. -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!-- Routes a push received while the app is in the background to the Flutter
+             notification handler rather than the system default. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="campus_track_alerts" />
+    </application>
+
+    <!--
+        Android 11 restricts what other apps a package can see. url_launcher needs to
+        declare the intents it will query, or launching a browser or dialler silently
+        fails on API 30 and above.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+</manifest>
