@@ -122,6 +122,72 @@ jobs:
             echo "Download the artefact below, then publish it from **Mobile app → Publish a build** in the admin portal."
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Optional: hand the build straight to the live portal so nobody has to download an
+      # artefact and re-upload it by hand. Skipped unless PORTAL_ADMIN_PASSWORD is set,
+      # because it needs an account allowed to publish and that is a decision worth making
+      # deliberately rather than inheriting.
+      - name: Publish to the live portal
+        if: env.HAS_PORTAL_CREDENTIALS == 'true'
+        env:
+          HAS_PORTAL_CREDENTIALS: ${{ secrets.PORTAL_ADMIN_PASSWORD != '' }}
+          PORTAL_URL: ${{ vars.PORTAL_URL || 'https://campus.sma-techno.net' }}
+          PORTAL_ADMIN_USER: ${{ vars.PORTAL_ADMIN_USER || 'admin' }}
+          PORTAL_ADMIN_PASSWORD: ${{ secrets.PORTAL_ADMIN_PASSWORD }}
+          COMMIT_SHA: ${{ github.sha }}
+          BUILD_NUMBER: ${{ github.event.inputs.build_number || github.run_number }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, re, subprocess, sys, urllib.request, urllib.error
+
+          portal = os.environ["PORTAL_URL"].rstrip("/")
+          apk = "build/app/outputs/flutter-apk/app-release.apk"
+          version = re.search(r"^version:\s*([^\s+]+)", open("pubspec.yaml").read(), re.M).group(1)
+          build_number = os.environ["BUILD_NUMBER"]
+
+          def die(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          # curl handles the multipart upload; doing it by hand in urllib buys nothing and
+          # is easy to get subtly wrong for a 30 MB binary.
+          login = subprocess.run(
+              ["curl", "-sS", "-X", "POST", f"{portal}/api/v1/auth/login",
+               "-H", "Content-Type: application/json",
+               "-d", json.dumps({
+                   "userNameOrEmail": os.environ["PORTAL_ADMIN_USER"],
+                   "password": os.environ["PORTAL_ADMIN_PASSWORD"],
+               })],
+              capture_output=True, text=True)
+
+          try:
+              token = json.loads(login.stdout).get("accessToken")
+          except json.JSONDecodeError:
+              die(f"Sign-in to {portal} did not return JSON: {login.stdout[:200]}")
+
+          if not token:
+              die(f"Could not sign in to {portal}. Check PORTAL_ADMIN_PASSWORD.")
+
+          print(f"Publishing {version} build {build_number} to {portal}")
+
+          upload = subprocess.run(
+              ["curl", "-sS", "-w", "\n%{http_code}", "-X", "POST",
+               f"{portal}/api/v1/app/releases",
+               "-H", f"Authorization: Bearer {token}",
+               "-F", f"file=@{apk};type=application/vnd.android.package-archive",
+               "-F", f"version={version}",
+               "-F", f"buildNumber={build_number}",
+               "-F", f"releaseNotes=Built from {os.environ['COMMIT_SHA'][:7]}"],
+              capture_output=True, text=True)
+
+          *body, status = upload.stdout.strip().split("\n")
+          if status != "201":
+              die(f"Publishing failed with HTTP {status}: {' '.join(body)[:300]}")
+
+          print(f"Published. Families can download it from {portal}/mobile-app")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(f"\nPublished to <{portal}/mobile-app>.\n")
+          PYEOF
+
       - uses: actions/upload-artifact@v4
         with:
           name: sma-campus-track-android
