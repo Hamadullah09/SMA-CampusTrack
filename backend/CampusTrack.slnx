@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CampusTrack.Api/CampusTrack.Api.csproj" />
+    <Project Path="src/CampusTrack.Application/CampusTrack.Application.csproj" />
+    <Project Path="src/CampusTrack.Domain/CampusTrack.Domain.csproj" />
+    <Project Path="src/CampusTrack.Infrastructure/CampusTrack.Infrastructure.csproj" />
+    <Project Path="src/CampusTrack.RfidGateway/CampusTrack.RfidGateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CampusTrack.IntegrationTests/CampusTrack.IntegrationTests.csproj" />
+    <Project Path="tests/CampusTrack.UnitTests/CampusTrack.UnitTests.csproj" />
+  </Folder>
+</Solution>

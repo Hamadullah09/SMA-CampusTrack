@@ -1,0 +1,75 @@
+\chapter{Getting started}
+
+\section{Who uses what}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{You are a\ldots} & \textbf{You use\ldots} & \textbf{Where} \\
+\midrule
+Parent  & CampusTrack mobile app & your own phone \\
+Student & CampusTrack mobile app & your own phone \\
+Teacher & Teacher \& Admin web portal & any browser \\
+Admin   & Teacher \& Admin web portal & any browser \\
+\bottomrule
+\end{tabular}
+\caption{One mobile app serves both parents and students -- the app
+shows the right portal automatically after login.}
+\end{table}
+
+\section{Your username and password}
+
+You do \textbf{not} register yourself. The school office (the
+administrator) creates an account for every parent, student and teacher
+and hands over the username and password. If you forget your password,
+contact the school office -- they can set a new one.
+
+\section{Installing the mobile app (parents and students)}
+
+\begin{enumerate}[itemsep=2pt]
+  \item Install \textbf{CampusTrack} from the Google Play Store
+        (Android) or the App Store (iPhone) -- or from the link the
+        school gives you.
+  \item Open the app. You will see the sign-in screen.
+  \item Type the username and password the school gave you and tap
+        \textbf{Sign in}.
+  \item When the phone asks \emph{``Allow notifications?''} tap
+        \textbf{Allow} -- otherwise you will not receive gate alerts and
+        daily summaries.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily]
+  \phoneframe{CampusTrack}
+  \node[text=campusblue] at (2.6,7.9) {\Large\textbf{CampusTrack}};
+  \node[text=black!55] at (2.6,7.45) {\scriptsize Parent \& Student portal};
+  \draw[rounded corners=3pt, fill=white, draw=black!25] (0.5,6.1) rectangle (4.7,6.75);
+  \node[anchor=west, text=black!45] at (0.7,6.42) {\footnotesize Username};
+  \draw[rounded corners=3pt, fill=white, draw=black!25] (0.5,5.2) rectangle (4.7,5.85);
+  \node[anchor=west, text=black!45] at (0.7,5.52) {\footnotesize Password};
+  \draw[rounded corners=3pt, fill=campusblue] (0.5,4.2) rectangle (4.7,4.9);
+  \node[text=white] at (2.6,4.55) {\footnotesize\textbf{Sign in}};
+\end{tikzpicture}
+\caption{The sign-in screen of the mobile app (illustration).}
+\end{figure}
+
+\section{Opening the web portal (teachers and admins)}
+
+\begin{enumerate}[itemsep=2pt]
+  \item Open any browser (Chrome, Edge, Firefox).
+  \item Go to the school's CampusTrack address, for example\\
+        \texttt{https://campustrack.yourschool.edu}
+  \item Sign in with your teacher or admin username.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{portal-login}
+\caption{The web portal sign-in page (actual screenshot).}
+\end{figure}
+
+\notebox{The web portal is only for teachers and administrators. If a
+parent or student signs in there, the portal politely refuses and points
+them to the mobile app.}

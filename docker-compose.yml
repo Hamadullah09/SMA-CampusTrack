@@ -1,0 +1,105 @@
+name: campustrack
+
+# Full stack for a single-school deployment: database, API and web portal.
+# Copy .env.example to .env and set real secrets before running this anywhere real.
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-campustrack}
+      MYSQL_USER: ${MYSQL_USER:-campustrack}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+    command:
+      # utf8mb4 throughout: student names are not ASCII.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # RFID ingestion is write-heavy; a larger buffer pool keeps the hot indexes in memory.
+      - --innodb-buffer-pool-size=512M
+      - --max-connections=300
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Applied only on first initialisation of an empty volume.
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Bound to localhost: the database must not be reachable from the school network.
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [campustrack]
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/CampusTrack.Api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        # Waits for the database to actually answer, not merely for the container to exist.
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__Default: >-
+        server=mysql;port=3306;database=${MYSQL_DATABASE:-campustrack};
+        user=${MYSQL_USER:-campustrack};password=${MYSQL_PASSWORD};
+        AllowUserVariables=true;UseAffectedRows=false
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env - at least 32 characters}
+      Jwt__Issuer: ${JWT_ISSUER:-CampusTrack}
+      Jwt__Audience: ${JWT_AUDIENCE:-CampusTrackClients}
+      SchoolTime__TimeZoneId: ${SCHOOL_TIMEZONE:-UTC}
+      School__Name: ${SCHOOL_NAME:-CampusTrack School}
+      School__Code: ${SCHOOL_CODE:-CTS}
+      Seed__AdminUserName: ${ADMIN_USERNAME:-admin}
+      Seed__AdminEmail: ${ADMIN_EMAIL:-admin@campustrack.local}
+      Seed__AdminPassword: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      # Schema changes stay a deliberate step in production rather than something a
+      # container restart performs on its own.
+      Database__AutoMigrate: ${AUTO_MIGRATE:-false}
+      Database__AutoSeed: "true"
+      RfidDevices__RequireDeviceAuthentication: "true"
+      RfidDevices__BootstrapApiKey: ${RFID_BOOTSTRAP_KEY:-}
+      Firebase__ProjectId: ${FIREBASE_PROJECT_ID:-}
+      Firebase__ServiceAccountKeyPath: ${FIREBASE_KEY_PATH:-}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__UserName: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Cors__AllowedOrigins__0: ${PUBLIC_URL:-http://localhost}
+    volumes:
+      - api-storage:/app/storage
+      - api-logs:/app/logs
+      - ./deploy/secrets:/app/secrets:ro
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks: [campustrack]
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on: [api]
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    networks: [campustrack]
+
+volumes:
+  mysql-data:
+  api-storage:
+  api-logs:
+
+networks:
+  campustrack:
+    driver: bridge

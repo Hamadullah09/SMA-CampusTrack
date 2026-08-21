@@ -1,0 +1,134 @@
+/*
+ * Sign-in.
+ *
+ * One centred card on a plain field. An earlier version split the screen with a marketing
+ * panel, which left the form pushed off to one side and the page reading as half-empty --
+ * nobody signing in to their own school's system needs to be sold it. Everything now sits
+ * on the vertical centre line: logo, product name, then the two fields.
+ */
+
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--space-5);
+
+  /* A soft wash keeps the page from reading as a blank sheet without competing with
+     the card that holds the actual task. */
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(249, 115, 22, 0.10), transparent 62%),
+    radial-gradient(680px 460px at 50% 108%, rgba(79, 70, 229, 0.10), transparent 60%),
+    var(--bg-canvas);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-10) var(--space-9) var(--space-8);
+  animation: slide-up var(--duration-slow) var(--ease-out);
+}
+
+/* ------------------------------------------------------------------- head ---- */
+
+.login-head {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.login-logo {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto var(--space-5);
+}
+
+.login-head h1 {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.025em;
+  line-height: var(--leading-tight);
+}
+
+.login-head p {
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+}
+
+/* ------------------------------------------------------------------- form ---- */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.login-form .input {
+  font-size: var(--text-md);
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.login-form .label {
+  font-size: var(--text-sm);
+}
+
+.login-password {
+  position: relative;
+}
+
+.login-password .input {
+  padding-right: 68px;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.login-password-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.login-help {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* -------------------------------------------------------------- responsive ---- */
+
+@media (max-width: 560px) {
+  .login-page {
+    padding: var(--space-5) var(--space-4);
+    align-items: flex-start;
+    padding-top: var(--space-10);
+  }
+
+  .login-card {
+    padding: var(--space-7) var(--space-5) var(--space-6);
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .login-logo {
+    max-width: 210px;
+  }
+}

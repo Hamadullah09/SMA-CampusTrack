@@ -1,0 +1,95 @@
+% ======================================================================
+% CampusTrack - User Manual
+% Compile with pdflatex (works on Overleaf, MiKTeX, TeX Live)
+% ======================================================================
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{float}
+
+\definecolor{campusblue}{RGB}{26,86,168}
+\definecolor{lightbg}{RGB}{244,246,250}
+\definecolor{okgreen}{RGB}{10,125,56}
+\definecolor{warnorange}{RGB}{220,120,20}
+
+\usepackage[colorlinks=true,linkcolor=campusblue,urlcolor=campusblue]{hyperref}
+
+\graphicspath{{images/}}
+
+% ---------- simple "tip" and "note" boxes -----------------------------
+\newcommand{\tipbox}[1]{%
+  \begin{center}
+  \fcolorbox{campusblue}{lightbg}{\parbox{0.92\textwidth}{\small \textbf{Tip:} #1}}
+  \end{center}}
+\newcommand{\notebox}[1]{%
+  \begin{center}
+  \fcolorbox{warnorange}{lightbg}{\parbox{0.92\textwidth}{\small \textbf{Note:} #1}}
+  \end{center}}
+
+% ---------- phone mock-up helpers (TikZ) ------------------------------
+% \appcard{y}{right symbol}{bold line}{grey line}
+\newcommand{\appcard}[4]{%
+  \draw[rounded corners=3pt, fill=white, draw=black!15] (0.25,#1) rectangle (4.95,#1+1.05);
+  \node[anchor=west] at (0.45,#1+0.70) {\footnotesize\textbf{#3}};
+  \node[anchor=west, text=black!55] at (0.45,#1+0.32) {\scriptsize #4};
+  \node[anchor=east, text=campusblue] at (4.80,#1+0.52) {\small #2};}
+
+% \phoneframe{app bar title}   ... draw inside a tikzpicture
+\newcommand{\phoneframe}[1]{%
+  \draw[rounded corners=14pt, fill=lightbg, draw=black!60, line width=1.2pt]
+        (0,0) rectangle (5.2,9.8);
+  \fill[campusblue] (0.06,8.9) rectangle (5.14,9.55);
+  \node[text=white, anchor=west] at (0.35,9.22) {\small\textbf{#1}};}
+
+% bottom navigation bar: draw the bar, then place items with \navitem
+\newcommand{\navbar}{%
+  \draw[fill=white, draw=black!20] (0.06,0.08) rectangle (5.14,0.75);}
+% \navitem{x}{label}{color}
+\newcommand{\navitem}[3]{\node[text=#3] at (#1,0.42) {\tiny #2};}
+
+% ======================================================================
+\begin{document}
+
+% ---------------- title page ----------------
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\Huge\bfseries\color{campusblue} CampusTrack\par}
+\vspace{0.4cm}
+{\LARGE RFID School \& College Management System\par}
+\vspace{1.2cm}
+{\Large\bfseries User Manual\par}
+\vspace{0.4cm}
+{\large For Parents, Students, Teachers and Administrators\par}
+\vspace{2cm}
+\begin{tikzpicture}
+  \node[draw=campusblue, rounded corners=6pt, line width=1pt,
+        minimum width=9cm, minimum height=2.6cm, fill=lightbg, align=center]
+    {\large School gate \& room attendance by RFID card\\[2pt]
+     \large Live notifications on the parent's phone\\[2pt]
+     \large Timetables, progress reports, feedback \& uploads};
+\end{tikzpicture}
+\vfill
+{\large Version 1.0 \par}
+{\large August 2026 \par}
+\end{titlepage}
+
+\tableofcontents
+
+\input{chapters/01-introduction}
+\input{chapters/02-getting-started}
+\input{chapters/03-parent-portal}
+\input{chapters/04-student-portal}
+\input{chapters/05-teacher-portal}
+\input{chapters/06-admin-portal}
+\input{chapters/07-faq}
+
+\end{document}

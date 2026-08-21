@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CampusTrack – Teacher &amp; Admin Portal</title>
+<style>
+  :root { --brand:#1a56a8; --bg:#f4f6fa; --card:#fff; --text:#1c2430; --muted:#68758a; --line:#dfe5ee; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:18px; margin:0; }
+  nav { display:flex; gap:4px; background:#fff; border-bottom:1px solid var(--line); padding:0 12px; flex-wrap:wrap; }
+  nav button { border:0; background:none; padding:12px 14px; cursor:pointer; font-size:14px; color:var(--muted); border-bottom:2px solid transparent; }
+  nav button.active { color:var(--brand); border-bottom-color:var(--brand); font-weight:600; }
+  main { padding:16px; max-width:1100px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px; }
+  .card h2 { margin:0 0 12px; font-size:16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 2px; }
+  input, select, textarea { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  textarea { min-height:70px; }
+  button.primary { background:var(--brand); color:#fff; border:0; padding:9px 16px; border-radius:6px; cursor:pointer; margin-top:10px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:220px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#e8eef8; color:var(--brand); }
+  .hidden { display:none; }
+  #loginBox { max-width:360px; margin:80px auto; }
+  .msg { font-size:13px; color:#0a7d38; min-height:18px; }
+  .err { color:#c0392b; }
+  img.qr { width:140px; height:140px; border:1px solid var(--line); }
+  a { color:var(--brand); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CampusTrack — Teacher &amp; Admin Portal</h1>
+  <div id="who" class="hidden">
+    <span id="whoName"></span>
+    <button onclick="logout()" style="margin-left:10px;background:#fff;color:var(--brand);border:0;padding:6px 12px;border-radius:6px;cursor:pointer">Sign out</button>
+  </div>
+</header>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginBox" class="card">
+  <h2>Sign in</h2>
+  <label>Username</label><input id="loginUser" value="">
+  <label>Password</label><input id="loginPass" type="password">
+  <button class="primary" onclick="login()">Sign in</button>
+  <div id="loginMsg" class="msg err"></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <nav id="tabs">
+    <button data-tab="reports" class="active">Student progress</button>
+    <button data-tab="assignments">Assignments &amp; notes</button>
+    <button data-tab="feedback">Parent feedback</button>
+    <button data-tab="uploads">Student uploads</button>
+    <button data-tab="admin" id="adminTabBtn" class="hidden">Administration</button>
+    <button data-tab="schedule">Timetable</button>
+  </nav>
+  <main>
+
+    <!-- Student progress -->
+    <section id="tab-reports">
+      <div class="card">
+        <h2>Add progress / activity report</h2>
+        <div class="row">
+          <div><label>Section</label><select id="rptSection" onchange="loadSectionStudents()"></select></div>
+          <div><label>Student</label><select id="rptStudent"></select></div>
+          <div><label>Date</label><input id="rptDate" type="date"></div>
+        </div>
+        <div class="row">
+          <div><label>Category</label>
+            <select id="rptCategory">
+              <option>Academic</option><option>Behaviour</option><option>Sports</option>
+              <option>HomeworkStatus</option><option>TestResult</option><option>Other</option>
+            </select></div>
+          <div><label>Title</label><input id="rptTitle" placeholder="e.g. Math quiz result"></div>
+          <div><label>Grade / score (optional)</label><input id="rptGrade" placeholder="e.g. A / 87%"></div>
+        </div>
+        <label>Remarks</label><textarea id="rptRemarks"></textarea>
+        <button class="primary" onclick="saveReport()">Save &amp; notify parent</button>
+        <div id="rptMsg" class="msg"></div>
+      </div>
+    </section>
+
+    <!-- Assignments -->
+    <section id="tab-assignments" class="hidden">
+      <div class="card">
+        <h2>Upload assignment / notes (QR download for students)</h2>
+        <div class="row">
+          <div><label>Section</label><select id="asgSection"></select></div>
+          <div><label>Type</label><select id="asgType"><option>Assignment</option><option>Notes</option></select></div>
+          <div><label>Due date (optional)</label><input id="asgDue" type="date"></div>
+        </div>
+        <label>Title</label><input id="asgTitle">
+        <label>Description</label><textarea id="asgDesc"></textarea>
+        <label>File</label><input id="asgFile" type="file">
+        <button class="primary" onclick="uploadAssignment()">Upload</button>
+        <div id="asgMsg" class="msg"></div>
+        <div id="asgQr"></div>
+      </div>
+    </section>
+
+    <!-- Feedback -->
+    <section id="tab-feedback" class="hidden">
+      <div class="card">
+        <h2>Parent feedback inbox</h2>
+        <table><thead><tr><th>Date</th><th>Parent</th><th>Student</th><th>Category</th><th>Message</th><th>Status</th><th>Reply</th></tr></thead>
+        <tbody id="fbRows"></tbody></table>
+      </div>
+    </section>
+
+    <!-- Uploads -->
+    <section id="tab-uploads" class="hidden">
+      <div class="card">
+        <h2>Student uploads awaiting review</h2>
+        <table><thead><tr><th>Uploaded</th><th>Student</th><th>Type</th><th>Title</th><th>File</th><th>Action</th></tr></thead>
+        <tbody id="upRows"></tbody></table>
+      </div>
+    </section>
+
+    <!-- Admin -->
+    <section id="tab-admin" class="hidden">
+      <div class="row">
+        <div class="card">
+          <h2>Classes &amp; sections (modular)</h2>
+          <div id="classList"></div>
+          <label>New class name</label><input id="newClass">
+          <button class="primary" onclick="addClass()">Add class</button>
+          <div class="row">
+            <div><label>Add section to</label><select id="secClass"></select></div>
+            <div><label>Section name</label><input id="newSection"></div>
+          </div>
+          <button class="primary" onclick="addSection()">Add section</button>
+        </div>
+        <div class="card">
+          <h2>Rooms &amp; RFID readers</h2>
+          <div id="roomList"></div>
+          <div class="row">
+            <div><label>Room name</label><input id="newRoom"></div>
+            <div><label>Type</label>
+              <select id="newRoomType">
+                <option>Gate</option><option>Classroom</option><option>Laboratory</option>
+                <option>Library</option><option>DiscussionRoom</option><option>Auditorium</option><option>Other</option>
+              </select></div>
+          </div>
+          <button class="primary" onclick="addRoom()">Add room</button>
+          <div class="row">
+            <div><label>Reader code</label><input id="newReaderCode" placeholder="e.g. GATE-01"></div>
+            <div><label>Room</label><select id="readerRoom"></select></div>
+            <div><label>Antennas</label><select id="readerAnt"><option>2</option><option>3</option></select></div>
+          </div>
+          <button class="primary" onclick="addReader()">Add reader</button>
+          <div id="adminMsg" class="msg"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Create accounts</h2>
+        <div class="row">
+          <div><label>Account type</label>
+            <select id="accType" onchange="accTypeChanged()">
+              <option value="parents">Parent</option><option value="teachers">Teacher</option><option value="students">Student</option>
+            </select></div>
+          <div><label>Full name</label><input id="accName"></div>
+          <div><label>Username</label><input id="accUser"></div>
+          <div><label>Password</label><input id="accPass" type="text"></div>
+          <div><label>Phone</label><input id="accPhone"></div>
+        </div>
+        <div id="studentExtra" class="row hidden">
+          <div><label>Reg. no</label><input id="accRegNo"></div>
+          <div><label>RFID tag EPC</label><input id="accEpc" placeholder="EPC from ID card"></div>
+          <div><label>Section</label><select id="accSection"></select></div>
+          <div><label>Parent</label><select id="accParent"></select></div>
+        </div>
+        <button class="primary" onclick="createAccount()">Create account</button>
+        <div id="accMsg" class="msg"></div>
+      </div>
+    </section>
+
+    <!-- Timetable -->
+    <section id="tab-schedule" class="hidden">
+      <div class="card">
+        <h2>Add timetable entry</h2>
+        <div class="row">
+          <div><label>Semester</label><select id="schSemester"></select></div>
+          <div><label>Section</label><select id="schSection"></select></div>
+          <div><label>Day</label>
+            <select id="schDay"><option value="1">Mon</option><option value="2">Tue</option><option value="3">Wed</option>
+            <option value="4">Thu</option><option value="5">Fri</option><option value="6">Sat</option><option value="7">Sun</option></select></div>
+          <div><label>Start</label><input id="schStart" type="time"></div>
+          <div><label>End</label><input id="schEnd" type="time"></div>
+        </div>
+        <div class="row">
+          <div><label>Subject</label><input id="schSubject"></div>
+          <div><label>Teacher</label><select id="schTeacher"></select></div>
+          <div><label>Room</label><select id="schRoom"></select></div>
+        </div>
+        <button class="primary" onclick="addScheduleEntry()">Add entry</button>
+        <div id="schMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>Section timetable</h2>
+        <label>Section</label><select id="schViewSection" onchange="loadTimetable()"></select>
+        <table><thead><tr><th>Day</th><th>Time</th><th>Subject</th><th>Teacher</th><th>Room</th></tr></thead>
+        <tbody id="schRows"></tbody></table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const api = (path, opts = {}) => {
+  opts.headers = Object.assign({}, opts.headers,
+    { 'Authorization': 'Bearer ' + localStorage.getItem('ct_token') });
+  if (opts.body && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  return fetch(path, opts).then(async r => {
+    if (r.status === 401) { logout(); throw new Error('Session expired'); }
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || ('HTTP ' + r.status));
+    return r.status === 204 ? null : r.json().catch(() => null);
+  });
+};
+const el = id => document.getElementById(id);
+const fill = (sel, items, val, txt, empty) => {
+  el(sel).innerHTML = (empty ? '<option value="">' + empty + '</option>' : '') +
+    items.map(i => `<option value="${i[val]}">${i[txt]}</option>`).join('');
+};
+const esc = s => (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let role = localStorage.getItem('ct_role');
+
+async function login() {
+  el('loginMsg').textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: el('loginUser').value, password: el('loginPass').value })
+    });
+    if (!r.ok) { el('loginMsg').textContent = 'Invalid username or password'; return; }
+    const data = await r.json();
+    if (data.role !== 'Admin' && data.role !== 'Teacher') {
+      el('loginMsg').textContent = 'This portal is for teachers and admins. Parents/students use the mobile app.'; return;
+    }
+    localStorage.setItem('ct_token', data.token);
+    localStorage.setItem('ct_role', data.role);
+    localStorage.setItem('ct_name', data.fullName);
+    role = data.role;
+    showApp();
+  } catch (e) { el('loginMsg').textContent = e.message; }
+}
+
+function logout() {
+  localStorage.removeItem('ct_token'); localStorage.removeItem('ct_role');
+  location.reload();
+}
+
+function showApp() {
+  el('loginBox').classList.add('hidden');
+  el('app').classList.remove('hidden');
+  el('who').classList.remove('hidden');
+  el('whoName').textContent = localStorage.getItem('ct_name') + ' (' + role + ')';
+  if (role === 'Admin') el('adminTabBtn').classList.remove('hidden');
+  el('rptDate').value = new Date().toISOString().slice(0, 10);
+  refreshAll();
+}
+
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+  el('tab-' + b.dataset.tab).classList.remove('hidden');
+});
+
+async function refreshAll() {
+  try {
+    const sections = await api('/api/me/sections');
+    ['rptSection','asgSection','schSection','schViewSection'].forEach(s => fill(s, sections, 'id', 'name'));
+    loadSectionStudents(); loadFeedback(); loadUploads(); loadTimetable();
+    if (role === 'Admin') loadAdmin();
+    const sems = await api('/api/admin/semesters').catch(() => null);
+    if (sems) fill('schSemester', sems, 'id', 'name');
+    const teachers = await api('/api/admin/teachers').catch(() => []);
+    fill('schTeacher', teachers || [], 'id', 'name', '— none —');
+    const rooms = await api('/api/admin/rooms').catch(() => []);
+    fill('schRoom', rooms || [], 'id', 'name', '— none —');
+    if (rooms) fill('readerRoom', rooms, 'id', 'name');
+  } catch (e) { console.error(e); }
+}
+
+async function loadSectionStudents() {
+  const sec = el('rptSection').value;
+  if (!sec) return;
+  const students = await api(`/api/activity/section/${sec}/students`);
+  fill('rptStudent', students, 'id', 'name');
+}
+
+async function saveReport() {
+  try {
+    await api('/api/activity', { method: 'POST', body: {
+      studentId: +el('rptStudent').value, reportDate: el('rptDate').value,
+      category: el('rptCategory').value, title: el('rptTitle').value,
+      remarks: el('rptRemarks').value || null, grade: el('rptGrade').value || null } });
+    el('rptMsg').textContent = 'Saved — parent notified.';
+    el('rptTitle').value = el('rptRemarks').value = el('rptGrade').value = '';
+  } catch (e) { el('rptMsg').textContent = e.message; }
+}
+
+async function uploadAssignment() {
+  const f = el('asgFile').files[0];
+  if (!f) { el('asgMsg').textContent = 'Choose a file first.'; return; }
+  const fd = new FormData();
+  fd.append('sectionId', el('asgSection').value);
+  fd.append('docType', el('asgType').value);
+  fd.append('title', el('asgTitle').value);
+  fd.append('description', el('asgDesc').value);
+  if (el('asgDue').value) fd.append('dueDate', el('asgDue').value);
+  fd.append('file', f);
+  try {
+    const r = await api('/api/assignments', { method: 'POST', body: fd });
+    el('asgMsg').textContent = 'Uploaded. Print or project this QR — students scan it to download:';
+    el('asgQr').innerHTML = `<img class="qr" src="${r.qrImageUrl}">`;
+  } catch (e) { el('asgMsg').textContent = e.message; }
+}
+
+async function loadFeedback() {
+  const rows = await api('/api/feedback');
+  el('fbRows').innerHTML = rows.map(f => `<tr>
+    <td>${new Date(f.createdAt).toLocaleDateString()}</td>
+    <td>${esc(f.parent)}</td><td>${esc(f.student)}</td>
+    <td><span class="pill">${esc(f.category)}</span></td>
+    <td>${esc(f.message)}</td><td>${esc(f.status)}</td>
+    <td>${f.reply ? esc(f.reply) :
+      `<button onclick="replyFeedback(${f.id})">Reply…</button>`}</td></tr>`).join('');
+}
+
+async function replyFeedback(id) {
+  const reply = prompt('Reply to parent:');
+  if (!reply) return;
+  await api(`/api/feedback/${id}/reply`, { method: 'POST', body: { reply } });
+  loadFeedback();
+}
+
+async function loadUploads() {
+  const rows = await api('/api/uploads/pending');
+  el('upRows').innerHTML = rows.map(u => `<tr>
+    <td>${new Date(u.uploadedAt).toLocaleString()}</td>
+    <td>${esc(u.student)}</td><td>${esc(u.uploadType)}</td><td>${esc(u.title)}</td>
+    <td><a href="/api/uploads/${u.id}/file" target="_blank">${esc(u.originalName)}</a></td>
+    <td><button onclick="reviewUpload(${u.id},'Approved')">Approve</button>
+        <button onclick="reviewUpload(${u.id},'Rejected')">Reject</button></td></tr>`).join('')
+    || '<tr><td colspan="6">Nothing pending.</td></tr>';
+}
+
+async function reviewUpload(id, status) {
+  const remarks = prompt('Remarks (optional):') || null;
+  await api(`/api/uploads/${id}/review`, { method: 'POST', body: { status, teacherRemarks: remarks } });
+  loadUploads();
+}
+
+async function loadAdmin() {
+  const classes = await api('/api/admin/classes');
+  el('classList').innerHTML = classes.filter(c => c.isActive).map(c =>
+    `<div><b>${esc(c.name)}</b> — ${c.sections.filter(s => s.isActive).map(s => esc(s.name)).join(', ') || 'no sections'}
+     <button onclick="delClass(${c.id})">delete</button></div>`).join('');
+  fill('secClass', classes.filter(c => c.isActive), 'id', 'name');
+
+  const rooms = await api('/api/admin/rooms');
+  const readers = await api('/api/admin/readers');
+  el('roomList').innerHTML = rooms.map(r => {
+    const rd = readers.filter(x => x.room === r.name).map(x => `${x.readerCode} (${x.antennaCount} ant.)`).join(', ');
+    return `<div>${esc(r.name)} <span class="pill">${esc(r.roomType)}</span> ${rd ? '— ' + esc(rd) : ''}</div>`;
+  }).join('');
+
+  const secs = await api('/api/me/sections');
+  fill('accSection', secs, 'id', 'name', '— none —');
+  const parents = await api('/api/admin/parents');
+  fill('accParent', parents, 'id', 'name', '— none —');
+}
+
+async function addClass() { await api('/api/admin/classes', { method: 'POST', body: { name: el('newClass').value } }); el('newClass').value=''; loadAdmin(); refreshAll(); }
+async function delClass(id) { if (confirm('Deactivate this class and its sections?')) { await api('/api/admin/classes/' + id, { method: 'DELETE' }); loadAdmin(); refreshAll(); } }
+async function addSection() { await api('/api/admin/sections', { method: 'POST', body: { classId: +el('secClass').value, name: el('newSection').value } }); el('newSection').value=''; loadAdmin(); refreshAll(); }
+async function addRoom() { await api('/api/admin/rooms', { method: 'POST', body: { name: el('newRoom').value, roomType: el('newRoomType').value } }); el('newRoom').value=''; loadAdmin(); }
+async function addReader() {
+  await api('/api/admin/readers', { method: 'POST', body: {
+    readerCode: el('newReaderCode').value, roomId: +el('readerRoom').value, antennaCount: +el('readerAnt').value } });
+  el('adminMsg').textContent = 'Reader added.'; loadAdmin();
+}
+
+function accTypeChanged() {
+  el('studentExtra').classList.toggle('hidden', el('accType').value !== 'students');
+}
+
+async function createAccount() {
+  const type = el('accType').value;
+  const user = { username: el('accUser').value, password: el('accPass').value,
+                 fullName: el('accName').value, email: null, phone: el('accPhone').value || null };
+  let body = { user };
+  if (type === 'students') body = { user, regNo: el('accRegNo').value, rfidEpc: el('accEpc').value || null,
+    sectionId: +el('accSection').value || null, parentId: +el('accParent').value || null };
+  try {
+    await api('/api/admin/' + type, { method: 'POST', body });
+    el('accMsg').textContent = 'Account created.';
+  } catch (e) { el('accMsg').textContent = e.message; }
+}
+
+async function addScheduleEntry() {
+  try {
+    await api('/api/schedule', { method: 'POST', body: {
+      semesterId: +el('schSemester').value, sectionId: +el('schSection').value,
+      dayOfWeek: +el('schDay').value, startTime: el('schStart').value, endTime: el('schEnd').value,
+      subject: el('schSubject').value,
+      teacherId: +el('schTeacher').value || null, roomId: +el('schRoom').value || null } });
+    el('schMsg').textContent = 'Entry added.'; loadTimetable();
+  } catch (e) { el('schMsg').textContent = e.message; }
+}
+
+const DAYS = ['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+async function loadTimetable() {
+  const sec = el('schViewSection').value;
+  if (!sec) return;
+  const rows = await api('/api/schedule/section/' + sec);
+  el('schRows').innerHTML = rows.map(r => `<tr><td>${DAYS[r.dayOfWeek]}</td>
+    <td>${r.startTime}–${r.endTime}</td><td>${esc(r.subject)}</td>
+    <td>${esc(r.teacher ?? '—')}</td><td>${esc(r.room ?? '—')}</td></tr>`).join('');
+}
+
+// deep-link support (used by docs/screenshot tooling): ?token=..&role=..&name=..&tab=..
+const qs = new URLSearchParams(location.search);
+if (qs.get('token')) {
+  localStorage.setItem('ct_token', qs.get('token'));
+  localStorage.setItem('ct_role', qs.get('role') || 'Admin');
+  localStorage.setItem('ct_name', qs.get('name') || 'User');
+  role = localStorage.getItem('ct_role');
+}
+if (localStorage.getItem('ct_token') && (role === 'Admin' || role === 'Teacher')) {
+  showApp();
+  const tab = qs.get('tab');
+  if (tab) document.querySelector(`#tabs button[data-tab="${tab}"]`)?.click();
+}
+</script>
+</body>
+</html>

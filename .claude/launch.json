@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "campustrack-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "backend/src/CampusTrack.Api", "--urls", "http://localhost:5080"],
+      "port": 5080,
+      "autoPort": false
+    },
+    {
+      "name": "campustrack-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "web"],
+      "port": 5173,
+      "autoPort": false
+    }
+  ]
+}

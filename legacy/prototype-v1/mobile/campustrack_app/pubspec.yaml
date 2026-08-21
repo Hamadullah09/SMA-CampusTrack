@@ -1,0 +1,29 @@
+name: campustrack_app
+description: CampusTrack – parent & student portals (RFID attendance, schedules, activities, uploads, QR downloads).
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
+  intl: ^0.19.0
+  file_picker: ^8.0.0
+  mobile_scanner: ^5.1.1        # QR scanning for assignment/notes download
+  url_launcher: ^6.2.5
+  path_provider: ^2.1.2
+  # --- push notifications (enable after `flutterfire configure`) ---
+  firebase_core: ^2.31.0
+  firebase_messaging: ^14.9.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

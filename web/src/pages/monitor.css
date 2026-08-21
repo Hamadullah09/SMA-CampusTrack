@@ -1,0 +1,185 @@
+.monitor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 1100px) {
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------- floor plan ---- */
+
+.floor-plan {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-lg);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.floor-plan-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+  background-size: 8.333% 10%;
+  opacity: 0.6;
+}
+
+.floor-plan-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 40ch;
+  margin: auto;
+}
+
+/* A reader pin. Centred on its coordinate so the dot marks the actual doorway. */
+.plan-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--bg-surface);
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  z-index: 1;
+}
+
+.plan-node:hover,
+.plan-node:focus-visible {
+  transform: translate(-50%, -50%) scale(1.16);
+  z-index: 2;
+}
+
+.plan-node-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  background: var(--bg-surface);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  pointer-events: none;
+}
+
+.plan-online {
+  background: var(--success-solid);
+  box-shadow: 0 0 0 4px var(--success-bg), var(--shadow-sm);
+}
+
+/* Offline pins pulse: on a wall display, a static red dot is easy to stop seeing. */
+.plan-offline {
+  background: var(--danger-solid);
+  box-shadow: 0 0 0 4px var(--danger-bg), var(--shadow-sm);
+  animation: pulse-dot 2s var(--ease-in-out) infinite;
+}
+
+.plan-degraded,
+.plan-maintenance {
+  background: var(--warning-solid);
+  box-shadow: 0 0 0 4px var(--warning-bg), var(--shadow-sm);
+}
+
+.plan-unknown {
+  background: var(--slate-400);
+  box-shadow: 0 0 0 4px var(--bg-hover), var(--shadow-sm);
+}
+
+/* --------------------------------------------------------------- unplaced ---- */
+
+.unplaced {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--slate-400);
+}
+
+.chip-online .chip-dot { background: var(--success-solid); }
+.chip-offline .chip-dot { background: var(--danger-solid); }
+.chip-degraded .chip-dot,
+.chip-maintenance .chip-dot { background: var(--warning-solid); }
+
+/* ------------------------------------------------------------------ feed ---- */
+
+.monitor-feed {
+  max-height: 520px;
+}
+
+.event-rejected {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+/* ---------------------------------------------------------------- details ---- */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-size: var(--text-base);
+}

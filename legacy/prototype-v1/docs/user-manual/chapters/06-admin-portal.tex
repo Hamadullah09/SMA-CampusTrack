@@ -1,0 +1,118 @@
+\chapter{Admin Portal (web)}
+
+Administrators sign in to the same web portal as teachers, but see one
+extra tab: \textbf{Administration}. An admin can do everything a teacher
+can, plus manage the school's structure and accounts.
+
+% ----------------------------------------------------------------------
+\section{Classes \& sections (fully modular)}
+
+The school's structure is never fixed. At any time you can:
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{Add a class}: type the name (``Grade 8'', ``BSCS-1'')
+        and click \textbf{Add class}.
+  \item \textbf{Add a section}: choose the class, type the section name
+        (``A'', ``B'', ``Blue'') and click \textbf{Add section}.
+  \item \textbf{Delete a class or section}: click \textbf{delete} next
+        to it. Deletion is ``soft'' -- old attendance and reports are
+        kept for the record, the class simply disappears from all
+        lists.
+\end{itemize}
+
+% ----------------------------------------------------------------------
+\section{Rooms \& RFID readers}
+
+Register every physical location and the reader hardware on its door:
+
+\begin{enumerate}[itemsep=2pt]
+  \item \textbf{Add the room}: name it and pick its type -- Gate,
+        Classroom, Laboratory, Library, DiscussionRoom, Auditorium or
+        Other.
+  \item \textbf{Add its reader}: type the reader code printed on the
+        device (e.g.\ \texttt{GATE-01}), pick the room, and choose the
+        number of antennas: \textbf{3 for gates, 2 for rooms}.
+\end{enumerate}
+
+From that moment the system understands the door: antenna order
+$1\rightarrow2(\rightarrow3)$ means entry, the reverse means exit.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{admin-structure}
+\caption{The Administration tab: classes \& sections on the left, rooms
+\& RFID readers on the right, account creation below.}
+\end{figure}
+
+% ----------------------------------------------------------------------
+\section{Creating accounts}
+
+Nobody registers themselves -- the admin creates every account. In
+\textbf{Create accounts}:
+
+\subsection{Create a parent}
+Choose account type \textbf{Parent}, fill full name, username, password
+and phone, click \textbf{Create account}. Hand the username and password
+to the parent.
+
+\subsection{Create a teacher}
+Same steps with account type \textbf{Teacher}.
+
+\subsection{Create a student (and link everything together)}
+Choose account type \textbf{Student}. Extra fields appear:
+
+\begin{itemize}[itemsep=2pt]
+  \item \textbf{Reg.\ no} -- the student's registration number;
+  \item \textbf{RFID tag EPC} -- the code of the RFID chip inside the
+        student's ID card (your card printer or a handheld reader shows
+        this code). This is what makes automatic attendance work;
+  \item \textbf{Section} -- which class and section the student joins;
+  \item \textbf{Parent} -- pick the parent account created earlier.
+        This link is what routes gate alerts and summaries to the right
+        parent's phone.
+\end{itemize}
+
+\notebox{If a student's ID card is lost, issue a new card and simply
+update the RFID tag EPC on the student -- history stays intact.}
+
+% ----------------------------------------------------------------------
+\section{Semesters and the timetable}
+
+Create a semester (name, start and end date, ``current'' flag), then
+build each section's timetable in the \textbf{Timetable} tab: day,
+start/end time, subject, teacher, room -- entry by entry. Parents and
+students see changes in their apps immediately.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{admin-timetable}
+\caption{Building a section timetable as admin.}
+\end{figure}
+
+% ----------------------------------------------------------------------
+\section{Daily \& weekly summary times}
+
+By default parents receive the daily summary at \textbf{18:00} and the
+weekly summary on \textbf{Friday}. Your IT person can change both in
+the server settings (\texttt{Summaries:DailyTime},
+\texttt{Summaries:WeeklyDay}).
+
+% ----------------------------------------------------------------------
+\section{Checklist: setting up a new school}
+
+\begin{enumerate}[itemsep=2pt]
+  \item Create the semester.
+  \item Add classes and their sections.
+  \item Add rooms, then the RFID reader of each room (3 antennas at
+        gates, 2 elsewhere).
+  \item Create teacher accounts.
+  \item Create parent accounts.
+  \item Create student accounts -- linking each student to a section, a
+        parent, and the RFID EPC of their ID card.
+  \item Build the timetable for every section.
+  \item Ask parents and students to install the app and sign in.
+\end{enumerate}
+
+\tipbox{The default administrator login shipped with the system is
+\texttt{admin} / \texttt{Admin@123} -- change this password on day
+one.}

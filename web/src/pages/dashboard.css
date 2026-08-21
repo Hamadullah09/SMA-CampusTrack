@@ -1,0 +1,160 @@
+.dash-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.dash-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 1100px) {
+  .dash-grid,
+  .dash-span-2 {
+    grid-template-columns: 1fr;
+    grid-column: span 1;
+  }
+}
+
+/* ------------------------------------------------------------- event feed ---- */
+
+.event-feed,
+.reader-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.event-feed li,
+.reader-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.event-feed li:last-child,
+.reader-list li:last-child {
+  border-bottom: none;
+}
+
+/* A single settling pulse marks what just arrived without leaving the list striped. */
+.event-feed li.is-new {
+  animation: pulse-highlight 2.6s var(--ease-out);
+}
+
+.event-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.event-in { background: var(--success-bg); color: var(--success-fg); }
+.event-out { background: var(--slate-200); color: var(--slate-600); }
+
+[data-theme='dark'] .event-out {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--slate-300);
+}
+
+.event-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.event-body strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-body span {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-time {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------ reader list ---- */
+
+.reader-status {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: var(--slate-400);
+}
+
+.reader-online {
+  background: var(--success-solid);
+  /* A soft halo reads as "transmitting" at a glance across a wall display. */
+  box-shadow: 0 0 0 3px var(--success-bg);
+}
+
+.reader-offline { background: var(--danger-solid); box-shadow: 0 0 0 3px var(--danger-bg); }
+.reader-degraded,
+.reader-maintenance { background: var(--warning-solid); box-shadow: 0 0 0 3px var(--warning-bg); }
+
+/* --------------------------------------------------------- chart tooltip ---- */
+
+.chart-tooltip {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  min-width: 140px;
+}
+
+.chart-tooltip-label {
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-1);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+
+.chart-tooltip-row strong {
+  margin-left: auto;
+  color: var(--text-primary);
+}
+
+.chart-tooltip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

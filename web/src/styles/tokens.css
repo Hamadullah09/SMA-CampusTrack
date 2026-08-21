@@ -1,0 +1,192 @@
+/*
+ * SMA Campus Track design tokens.
+ *
+ * Every colour, space and radius in the product resolves to one of these variables. That is
+ * what makes dark mode a matter of redefining a dozen values rather than auditing hundreds of
+ * components, and what stops "nearly the same blue" appearing on three different screens.
+ *
+ * Palette rationale: a deep slate/indigo base reads as institutional rather than playful,
+ * while the status colours (green/amber/red) are reserved exclusively for state - present,
+ * late, absent; online, degraded, offline - so colour always carries the same meaning.
+ */
+
+:root {
+  /* ---- brand ------------------------------------------------------------- */
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-200: #c7d2fe;
+  --brand-300: #a5b4fc;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-800: #3730a3;
+  --brand-900: #312e81;
+
+  /* ---- neutrals ---------------------------------------------------------- */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* ---- status: never used decoratively ----------------------------------- */
+  --success-bg: #dcfce7;
+  --success-fg: #15803d;
+  --success-solid: #16a34a;
+  --warning-bg: #fef3c7;
+  --warning-fg: #b45309;
+  --warning-solid: #f59e0b;
+  --danger-bg: #fee2e2;
+  --danger-fg: #b91c1c;
+  --danger-solid: #dc2626;
+  --info-bg: #dbeafe;
+  --info-fg: #1d4ed8;
+  --info-solid: #3b82f6;
+
+  /* ---- semantic surfaces (redefined for dark mode) ------------------------ */
+  --bg-canvas: var(--slate-50);
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-sunken: var(--slate-100);
+  --bg-hover: var(--slate-100);
+  --bg-active: var(--slate-200);
+  --bg-inverse: var(--slate-900);
+
+  --text-primary: var(--slate-900);
+  --text-secondary: var(--slate-600);
+  --text-muted: var(--slate-500);
+  --text-inverse: #ffffff;
+  --text-brand: var(--brand-600);
+
+  --border-subtle: var(--slate-200);
+  --border-default: var(--slate-300);
+  --border-strong: var(--slate-400);
+  --border-focus: var(--brand-500);
+
+  --sidebar-bg: var(--slate-900);
+  --sidebar-fg: var(--slate-300);
+  --sidebar-fg-active: #ffffff;
+  --sidebar-active-bg: rgba(99, 102, 241, 0.18);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+
+  /* ---- spacing: a 4px scale, so nothing lands on an arbitrary value ------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- radii ------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* ---- elevation: subtle, layered, never a hard drop shadow -------------- */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.28);
+
+  /* ---- typography -------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /* The ramp is deliberately generous. This is a system staff read all day, often on a
+     screen across a school office, so body copy sits at 16px rather than the 14px that
+     dense dashboards default to. Everything is in rem, so the root size below scales the
+     whole interface -- type and spacing together -- without distorting its proportions. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.4375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* ---- layout ------------------------------------------------------------ */
+  --sidebar-width: 17rem;
+  --sidebar-collapsed: 4.5rem;
+  --topbar-height: 60px;
+  --content-max: 1600px;
+
+  /* ---- motion ------------------------------------------------------------ */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-drawer: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/*
+ * Dark mode redefines only the semantic layer. Surfaces lift as they come forward rather than
+ * simply getting lighter, which is what keeps depth readable without shadows on a dark ground.
+ */
+[data-theme='dark'] {
+  --bg-canvas: var(--slate-950);
+  --bg-surface: var(--slate-900);
+  --bg-raised: var(--slate-800);
+  --bg-sunken: #0b1220;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-inverse: var(--slate-100);
+
+  --text-primary: var(--slate-100);
+  --text-secondary: var(--slate-400);
+  --text-muted: var(--slate-500);
+  --text-inverse: var(--slate-900);
+  --text-brand: var(--brand-400);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --sidebar-bg: #0b1220;
+  --sidebar-fg: var(--slate-400);
+
+  /* Status colours are re-tinted for contrast on dark, keeping the same meanings. */
+  --success-bg: rgba(22, 163, 74, 0.16);
+  --success-fg: #4ade80;
+  --warning-bg: rgba(245, 158, 11, 0.16);
+  --warning-fg: #fbbf24;
+  --danger-bg: rgba(220, 38, 38, 0.16);
+  --danger-fg: #f87171;
+  --info-bg: rgba(59, 130, 246, 0.16);
+  --info-fg: #60a5fa;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.55);
+}

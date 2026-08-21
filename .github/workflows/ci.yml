@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# A newer push supersedes an in-flight run for the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  backend:
+    name: Backend build and test
+    runs-on: ubuntu-latest
+
+    services:
+      # Integration tests run against a real MySQL, not an in-memory substitute: the
+      # provider quirks this product had to work around only appear on the real engine.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: campustrack_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pci-root-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/**/Directory.Packages.props', 'backend/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        working-directory: backend
+        run: dotnet restore
+
+      - name: Build
+        working-directory: backend
+        run: dotnet build --no-restore -c Release
+
+      - name: Unit tests
+        working-directory: backend
+        run: >-
+          dotnet test tests/CampusTrack.UnitTests
+          --no-build -c Release --logger "trx;LogFileName=unit.trx"
+          --collect:"XPlat Code Coverage"
+
+      - name: Integration tests
+        working-directory: backend
+        env:
+          ConnectionStrings__Default: >-
+            server=127.0.0.1;port=3306;database=campustrack_test;user=root;
+            password=ci-root-password;AllowUserVariables=true
+        run: >-
+          dotnet test tests/CampusTrack.IntegrationTests
+          --no-build -c Release --logger "trx;LogFileName=integration.trx"
+
+      - name: Verify migrations apply to an empty database
+        working-directory: backend
+        env:
+          CAMPUSTRACK_DESIGN_CONNECTION: >-
+            server=127.0.0.1;port=3306;database=campustrack_migrations;user=root;
+            password=ci-root-password
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.11
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          # Catches a migration that builds but cannot actually be applied — the failure
+          # mode that otherwise surfaces during a production deployment.
+          dotnet ef database update \
+            --project src/CampusTrack.Infrastructure \
+            --startup-project src/CampusTrack.Infrastructure
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/**/TestResults/**
+
+  web:
+    name: Web build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Type check
+        working-directory: web
+        run: npx tsc -b --pretty false
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+  mobile:
+    name: Flutter analyse and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: mobile/campustrack_app
+        run: flutter pub get
+
+      - name: Analyse
+        working-directory: mobile/campustrack_app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        working-directory: mobile/campustrack_app
+        run: flutter test
+
+  images:
+    name: Build container images
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    # Images are only built for the branches that actually get deployed.
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/src/CampusTrack.Api/Dockerfile
+          push: false
+          tags: campustrack/api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: false
+          tags: campustrack/web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
