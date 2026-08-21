@@ -261,12 +261,42 @@ jobs:
       # storage/ holds published APKs and assignment attachments, and logs/ is written by
       # the running site. Both are excluded above so a deploy never deletes uploaded files.
 
+      # This step decides whether the deploy is reported as a success, so it fails rather
+      # than warns. An earlier version ended on `::warning::`, which exits zero: the site
+      # was answering 500.34 on every route and the run still came up green. A deploy that
+      # leaves the site broken and says otherwise is worse than one that simply fails.
       - name: Verify the site responds
         run: |
-          for i in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' https://campus.sma-techno.net/health/live || echo 000)
+          SITE=https://campus.sma-techno.net
+
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /tmp/probe.html -w '%{http_code}' --max-time 30 "$SITE/health/live" || echo 000)
             echo "attempt $i: $code"
-            [ "$code" = "200" ] && exit 0
+
+            if [ "$code" = "200" ]; then
+              # Healthy is necessary but not sufficient: confirm the SPA is really being
+              # served rather than an IIS error page that happens to return 200.
+              root=$(curl -s --max-time 30 "$SITE/" || true)
+              if echo "$root" | grep -q "SMA Campus Track"; then
+                echo "Site is up and serving the portal."
+                echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "<$SITE> is live and healthy." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+              echo "Healthy, but the root did not serve the portal. Retrying."
+            fi
+
             sleep 15
           done
-          echo "::warning::The site did not return healthy within 150s. IIS may still be starting; check manually."
+
+          echo "::error::The site did not come up within three minutes."
+          {
+            echo "### Deploy failed verification"
+            echo ""
+            echo "Last status: \`$code\`. First 40 lines of the response:"
+            echo '```'
+            head -40 /tmp/probe.html 2>/dev/null || echo "(no body)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
