@@ -21,13 +21,16 @@ RUN dotnet publish "src/CampusTrack.Api/CampusTrack.Api.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Runs as a non-root user. A container that is compromised should not also be root.
-RUN adduser --disabled-password --gecos "" --uid 10001 campustrack \
- && mkdir -p /app/storage /app/logs \
- && chown -R campustrack:campustrack /app
-USER campustrack
+# Runs as a non-root user: a container that is compromised should not also be root.
+#
+# The image already provides one. .NET 8 added a pre-created `app` user (uid 1654), and the
+# runtime images dropped `adduser` along the way, so creating a user by hand fails with
+# exit 127 -- command not found -- which reads like anything but the missing utility it is.
+USER root
+RUN mkdir -p /app/storage /app/logs && chown -R app:app /app
+USER app
 
-COPY --from=build --chown=campustrack:campustrack /app/publish .
+COPY --from=build --chown=app:app /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \

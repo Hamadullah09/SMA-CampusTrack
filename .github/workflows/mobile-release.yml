@@ -21,6 +21,13 @@ jobs:
       run:
         working-directory: mobile/campustrack_app
 
+    # The `secrets` context cannot be read from a step-level `if`; doing so is a workflow
+    # parse error, not a runtime one, so the whole file is rejected. Surfacing the secret
+    # as an environment variable at job level is the supported way to branch on whether
+    # one is configured.
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +57,7 @@ jobs:
       # binary. It is written outside the workspace so it cannot be picked up by a later
       # step that archives the build directory.
       - name: Restore the signing key
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
