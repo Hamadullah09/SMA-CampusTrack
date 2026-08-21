@@ -44,8 +44,8 @@ export function LoginPage() {
       <main className="login-card">
         <header className="login-head">
           <img className="login-logo" src={BRAND_LOGO} alt={PRODUCT_NAME} />
-          <h1>{PRODUCT_NAME}</h1>
-          <p>Sign in with your school account to continue.</p>
+          <h1>Sign in</h1>
+          <p>Welcome back to {PRODUCT_NAME}</p>
         </header>
 
         <form className="login-form" onSubmit={handleSubmit}>
@@ -84,6 +84,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
+                placeholder="Your password"
               />
               <button
                 type="button"
@@ -105,6 +106,10 @@ export function LoginPage() {
           Trouble signing in? Contact the school office to have your password reset.
         </p>
       </main>
+
+      <p className="login-footnote">
+        RFID-first school management by SMA Technology
+      </p>
     </div>
   );
 }
