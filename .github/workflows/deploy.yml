@@ -5,11 +5,10 @@ name: Deploy to campus.sma-techno.net
 # merge. Flip `push:` on below once you are happy with the cadence.
 on:
   workflow_dispatch:
-    inputs:
-      run_migrations:
-        description: 'Apply pending database migrations on first request after deploy'
-        type: boolean
-        default: false
+  # Pushing a deploy-* tag starts a release. Still deliberate -- someone has to create the
+  # tag -- but it does not require the Actions UI.
+  push:
+    tags: ['deploy-*']
 
 concurrency:
   group: deploy-production
@@ -26,6 +25,37 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Checked before anything is built or uploaded. A site published without a connection
+      # string starts, answers every request with a 500 and replaces a working placeholder
+      # page with a broken one; failing here costs nothing by comparison.
+      - name: Check the deployment is configured
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          PROD_CONNECTION_STRING: ${{ secrets.PROD_CONNECTION_STRING }}
+          PROD_JWT_KEY: ${{ secrets.PROD_JWT_KEY }}
+        run: |
+          missing=""
+          for name in FTP_HOST FTP_USER FTP_PASSWORD PROD_CONNECTION_STRING PROD_JWT_KEY; do
+            [ -z "${!name}" ] && missing="$missing $name"
+          done
+
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings > Secrets and variables > Actions." >> "$GITHUB_STEP_SUMMARY"
+            echo "See docs/deployment/myasp-net.md for what each one holds." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          # A short signing key is as good as none: it is what authenticates every request.
+          if [ "${#PROD_JWT_KEY}" -lt 32 ]; then
+            echo "::error::PROD_JWT_KEY is ${#PROD_JWT_KEY} characters. Use at least 32; generate one with: openssl rand -base64 64"
+            exit 1
+          fi
+
+          echo "Configuration present."
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -74,6 +104,77 @@ jobs:
 
           echo "Deploying $(du -sh publish | cut -f1):"
           ls publish | head -20
+
+      # Written here rather than uploaded by hand once and forgotten. GitHub secrets stay the
+      # single source of truth, and a rotated key takes effect on the next deploy instead of
+      # requiring someone to remember which file on the server holds it.
+      - name: Write production settings
+        env:
+          PROD_CONNECTION_STRING: ${{ secrets.PROD_CONNECTION_STRING }}
+          PROD_JWT_KEY: ${{ secrets.PROD_JWT_KEY }}
+          PROD_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
+          PROD_SCHOOL_NAME: ${{ vars.SCHOOL_NAME || 'SMA Demonstration School' }}
+          PROD_TIMEZONE: ${{ vars.SCHOOL_TIMEZONE || 'Pakistan Standard Time' }}
+          PROD_RFID_BOOTSTRAP_KEY: ${{ secrets.PROD_RFID_BOOTSTRAP_KEY }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, secrets, string
+
+          def rand(n=48):
+              alphabet = string.ascii_letters + string.digits
+              return ''.join(secrets.choice(alphabet) for _ in range(n))
+
+          settings = {
+              "ConnectionStrings": {"Default": os.environ["PROD_CONNECTION_STRING"]},
+              "Database": {
+                  # Creates the schema on first start. Safe to leave on: migrations are
+                  # idempotent and a deploy that cannot migrate should fail loudly.
+                  "AutoMigrate": True,
+                  "AutoSeed": True,
+              },
+              "Jwt": {
+                  "Key": os.environ["PROD_JWT_KEY"],
+                  "Issuer": "SMACampusTrack",
+                  "Audience": "SMACampusTrackClients",
+                  "AccessTokenMinutes": 60,
+                  "RefreshTokenDays": 30,
+              },
+              "Seed": {
+                  "AdminUserName": "admin",
+                  "AdminEmail": "admin@sma-techno.net",
+                  # Only used the very first time, on an empty database. Generated rather
+                  # than defaulted so an unset secret cannot leave a guessable administrator.
+                  "AdminPassword": os.environ.get("PROD_ADMIN_PASSWORD") or rand(),
+              },
+              "School": {"Name": os.environ["PROD_SCHOOL_NAME"], "Code": "SMA"},
+              "SchoolTime": {"TimeZoneId": os.environ["PROD_TIMEZONE"]},
+              "RfidDevices": {
+                  "RequireDeviceAuthentication": True,
+                  "BootstrapApiKey": os.environ.get("PROD_RFID_BOOTSTRAP_KEY") or rand(),
+              },
+              "FileStorage": {"RootPath": "storage"},
+              "Cors": {"AllowedOrigins": ["https://campus.sma-techno.net"]},
+              "Serilog": {
+                  "MinimumLevel": {
+                      "Default": "Warning",
+                      "Override": {"Microsoft": "Error", "System": "Error"},
+                  },
+                  "WriteTo": [{
+                      "Name": "File",
+                      "Args": {
+                          "path": "logs/campustrack-.log",
+                          "rollingInterval": "Day",
+                          "retainedFileCountLimit": 14,
+                      },
+                  }],
+              },
+              "AllowedHosts": "*",
+          }
+
+          with open("publish/appsettings.Production.json", "w", encoding="utf-8") as f:
+              json.dump(settings, f, indent=2)
+          print("Wrote appsettings.Production.json")
+          PYEOF
 
       - name: Guard against shipping development settings
         run: |
