@@ -57,6 +57,55 @@ jobs:
 
           echo "Configuration present."
 
+      # Proves the credentials work and finds where the site actually lives, before a build
+      # is spent on it. SmarterASP/site4now accounts are usually rooted at the site folder
+      # with the web root in wwwroot/, but an account scoped to a subfolder lands directly in
+      # it -- guessing wrong uploads a whole site into a directory nothing serves.
+      - name: Locate the web root over FTP
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_DIR: ${{ vars.FTP_REMOTE_DIR }}
+        run: |
+          if [ -n "$FTP_REMOTE_DIR" ]; then
+            echo "Using the configured FTP_REMOTE_DIR: $FTP_REMOTE_DIR"
+            echo "FTP_TARGET=$FTP_REMOTE_DIR" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "Listing the FTP root..."
+          if ! listing=$(curl -sS --list-only --connect-timeout 30 \
+                --user "$FTP_USER:$FTP_PASSWORD" "ftp://$FTP_HOST/" 2>&1); then
+            echo "::error::Could not connect to $FTP_HOST as $FTP_USER. Check the FTP secrets."
+            echo "$listing"
+            exit 1
+          fi
+
+          echo "$listing"
+
+          # Prefer a wwwroot if the account root has one; otherwise the account is already
+          # scoped to the site and files belong at its root.
+          if echo "$listing" | grep -qx "wwwroot"; then
+            target="/wwwroot/"
+          else
+            target="/"
+          fi
+
+          echo "Deploying to: $target"
+          {
+            echo "### FTP target"
+            echo ""
+            echo "Account root contains:"
+            echo '```'
+            echo "$listing"
+            echo '```'
+            echo ""
+            echo "Uploading to \`$target\`. Set the **FTP_REMOTE_DIR** repository variable to override."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "FTP_TARGET=$target" >> "$GITHUB_ENV"
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -199,7 +248,7 @@ jobs:
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./publish/
-          server-dir: ${{ vars.FTP_REMOTE_DIR || '/wwwroot/' }}
+          server-dir: ${{ env.FTP_TARGET }}
           # The action keeps a manifest on the server and uploads only what changed, which
           # turns a ~40 MB first deploy into seconds on subsequent runs.
           dangerous-clean-slate: false

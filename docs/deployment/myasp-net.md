@@ -32,12 +32,18 @@ plan, so it is worth asking before uploading 54 MB.
 
 | Secret | Value |
 |---|---|
-| `FTP_HOST` | FTP server from the MyASP.NET control panel |
-| `FTP_USER` | FTP username |
-| `FTP_PASSWORD` | FTP password |
+| `FTP_HOST` | `win8238.site4now.net` |
+| `FTP_USER` | `campus` |
+| `FTP_PASSWORD` | The password set when the FTP account was created |
+| `PROD_CONNECTION_STRING` | MySQL details from the control panel |
+| `PROD_JWT_KEY` | Generate one: 64 random characters, never reused between environments |
 
-If the site root is not `/wwwroot/`, add a repository **variable** named `FTP_REMOTE_DIR`
-with the correct path.
+Optional: `PROD_ADMIN_PASSWORD` and `PROD_RFID_BOOTSTRAP_KEY`. Both are generated randomly
+when unset, so a missing value cannot leave a guessable administrator on a public site.
+
+The deploy finds the web root itself. It lists the FTP account root and uploads into
+`wwwroot/` when that exists, or into the account root when the account is already scoped to
+the site folder. Set a repository **variable** named `FTP_REMOTE_DIR` to override.
 
 **2. Production settings.** Copy `deploy/appsettings.Production.template.json` to
 `appsettings.Production.json`, fill in every `REPLACE_` value, and upload it **by FTP to the
