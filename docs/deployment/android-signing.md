@@ -15,30 +15,45 @@ four; generating it once and committing it is the only way those decisions survi
 
 ## Generating the keystore
 
-Do this once, on a machine you control. `keytool` ships with any JDK — Android Studio bundles
-one at `<Android Studio>/jbr/bin/keytool`.
+Do this once, on a machine you control. Two routes; both produce the same artefact, a PKCS#12
+keystore holding one RSA key and a self-signed certificate.
+
+**Without a JDK** (nothing to install). The script prompts for the password, so it never
+appears on a command line or in shell history:
+
+```bash
+python tools/generate-release-key.py
+```
+
+**With a JDK**, if you have one or would rather use the standard tool:
 
 ```bash
 keytool -genkeypair -v \
   -keystore sma-campus-track.jks \
-  -storetype JKS \
+  -storetype PKCS12 \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -alias sma-campus-track \
   -dname "CN=SMA Campus Track, O=SMA Technology, C=PK"
 ```
 
-It prompts for a password. Choose a strong one and put it in a password manager.
+`keytool` ships only with a JDK; if it is not recognised, that is why. Install one with
+`winget install EclipseAdoptium.Temurin.17.JDK` **from an elevated PowerShell** (it needs a
+UAC prompt), then reopen the terminal so `keytool` is on `PATH`. Or just use the Python
+script and skip the install.
 
-> **Back the `.jks` file up somewhere durable and private.** Losing it means the app can never
-> be updated again, only replaced under a new application id — every family uninstalling and
-> reinstalling. `-validity 10000` is about 27 years; a shorter key would strand you the same
-> way when it expired.
+Run whichever you choose from a sensible working directory. A PowerShell opened as
+administrator starts in `C:\Windows\System32`, which is not where this file should land.
+
+> **Back the keystore up somewhere durable and private, together with the password.** Losing
+> either means the app can never be updated again, only replaced under a new application id
+> with every family uninstalling and reinstalling. `-validity 10000` is about 27 years; a
+> shorter key would strand you the same way when it expired.
 
 Nothing about the keystore belongs in this repository. `.gitignore` already refuses
 `key.properties`, `*.jks`, `*.keystore` and `keys/`, which you can confirm with:
 
 ```bash
-git check-ignore -v keys/sma-campus-track.jks mobile/campustrack_app/android/key.properties
+git check-ignore -v mobile/campustrack_app/android/key.properties
 ```
 
 ## Building locally
@@ -61,7 +76,7 @@ Settings → Secrets and variables → Actions:
 
 | Secret | How to produce it |
 |---|---|
-| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 sma-campus-track.jks` (macOS: `base64 -i sma-campus-track.jks`). A secret holds text, not binary, hence the encoding. |
+| `ANDROID_KEYSTORE_BASE64` | `python tools/generate-release-key.py --base64` and paste the output. (Equivalently `base64 -w0 sma-campus-track.jks`.) A secret holds text, not binary, hence the encoding. |
 | `ANDROID_KEYSTORE_PASSWORD` | The store password you chose above |
 | `ANDROID_KEY_ALIAS` | `sma-campus-track` |
 | `ANDROID_KEY_PASSWORD` | The key password (often the same as the store password) |

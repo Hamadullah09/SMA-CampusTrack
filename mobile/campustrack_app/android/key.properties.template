@@ -2,34 +2,43 @@
 #
 # Copy this file to key.properties in the same folder and fill it in. That file is
 # gitignored and must stay that way: with the keystore and these passwords, anyone can
-# publish an update that Android will install over the real app.
+# publish an update that Android installs over the real app.
 #
 # ---------------------------------------------------------------------------------------
-# Generating the keystore (do this once, on a machine you control):
+# Generating the keystore (once, on a machine you control)
 #
-#   keytool -genkeypair -v \
-#     -keystore sma-campus-track.jks \
-#     -storetype JKS \
-#     -keyalg RSA -keysize 2048 -validity 10000 \
-#     -alias sma-campus-track \
-#     -dname "CN=SMA Campus Track, O=SMA Technology, L=, C=PK"
+# Without a JDK -- no install needed, prompts for the password so it is never on a command
+# line or in a shell history:
 #
-# keytool ships with any JDK (Android Studio bundles one at
-# <Android Studio>/jbr/bin/keytool). It will prompt for a password; choose a strong one
-# and store it in a password manager.
+#     python tools/generate-release-key.py
 #
-# -validity 10000 is about 27 years. Google Play requires a key valid until at least
-# 2033, and more importantly a key cannot be swapped later: an app signed with a new key
-# is a different app to Android and cannot upgrade the old one in place. Every family
-# would have to uninstall and reinstall, losing their session.
+# With a JDK, the equivalent keytool invocation:
 #
-# BACK THE .jks FILE UP somewhere durable and private. Losing it means the app can never
-# be updated again, only replaced under a new application id.
+#     keytool -genkeypair -v \
+#       -keystore sma-campus-track.jks \
+#       -storetype PKCS12 \
+#       -keyalg RSA -keysize 2048 -validity 10000 \
+#       -alias sma-campus-track \
+#       -dname "CN=SMA Campus Track, O=SMA Technology, C=PK"
+#
+# Both produce the same thing: a PKCS#12 keystore holding one RSA key and a self-signed
+# certificate. Run it somewhere sensible -- not C:\Windows\System32, which is where a shell
+# opened as administrator starts.
+#
+# -validity 10000 is about 27 years. A key cannot be swapped later: an app signed with a
+# different key is a different app to Android and cannot upgrade the old one in place, so
+# every family would have to uninstall and reinstall, losing their session.
+#
+# BACK THE KEYSTORE UP somewhere durable and private, together with the password. Losing
+# either means the app can never be updated again, only replaced under a new application id.
 # ---------------------------------------------------------------------------------------
 
-# Path to the keystore. Relative paths resolve from the android/ folder; an absolute path
-# outside the repository is safer, because then the key cannot be committed by accident.
-storeFile=../../../keys/sma-campus-track.jks
+# Absolute path is safest: a key outside the working tree cannot be committed by accident.
+# On Windows use forward slashes, e.g. C:/Users/you/sma-campus-track-keys/sma-campus-track.jks
+storeFile=../../../../sma-campus-track-keys/sma-campus-track.jks
+
+# PKCS12 is what both commands above produce. Set JKS only for an older keystore.
+storeType=PKCS12
 
 storePassword=YOUR_KEYSTORE_PASSWORD
 keyAlias=sma-campus-track
