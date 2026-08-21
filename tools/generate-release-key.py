@@ -173,21 +173,55 @@ To build in CI, add these repository secrets
     return 0
 
 
-def emit_base64() -> int:
-    """Print the keystore base64 encoded, for pasting into a CI secret."""
-    raw = input("Path to the keystore: ").strip().strip('"')
-    path = Path(raw).expanduser()
+def emit_base64(argv: list[str]) -> int:
+    """
+    Print the keystore base64 encoded, for pasting into a CI secret.
+
+    Every prompt and status line goes to stderr, and only the encoded key reaches stdout.
+    That is what makes `--base64 > secret.txt` work: an earlier version printed the prompt
+    to stdout, so the redirect swallowed the question and the user answered a prompt they
+    could not see.
+    """
+    args = [a for a in argv[1:] if a != "--base64"]
+
+    if args:
+        path = Path(args[0]).expanduser()
+    else:
+        # Try where main() writes by default before asking for anything.
+        repo_root = Path(__file__).resolve().parent.parent
+        guess = repo_root.parent / "sma-campus-track-keys" / "sma-campus-track.jks"
+
+        if guess.is_file():
+            path = guess
+            print(f"Using {path}", file=sys.stderr)
+        else:
+            print("Path to the keystore: ", end="", file=sys.stderr, flush=True)
+            path = Path(input().strip().strip('"')).expanduser()
 
     if not path.is_file():
-        return print(f"No file at {path}") or 1
+        print(f"No file at {path}", file=sys.stderr)
+        print("\nPass it as an argument:", file=sys.stderr)
+        print("  python tools/generate-release-key.py --base64 <path-to.jks> > secret.txt",
+              file=sys.stderr)
+        return 1
 
     import base64
-    print("\nCopy everything between the lines into the ANDROID_KEYSTORE_BASE64 secret:\n")
-    print("-" * 60)
-    print(base64.b64encode(path.read_bytes()).decode("ascii"))
-    print("-" * 60)
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+
+    print(f"Encoding {path.name} ({path.stat().st_size} bytes)", file=sys.stderr)
+
+    if sys.stdout.isatty():
+        guidance = "\nCopy the single line below into the ANDROID_KEYSTORE_BASE64 secret:\n"
+    else:
+        guidance = ("Written to the redirected file. Copy its whole contents into the "
+                    "ANDROID_KEYSTORE_BASE64 secret, then delete the file.")
+
+    print(guidance, file=sys.stderr)
+
+    # stdout carries the key material and nothing else, so a redirect captures exactly it.
+    print(encoded)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(emit_base64() if "--base64" in sys.argv else main())
+    sys.exit(emit_base64(sys.argv) if "--base64" in sys.argv else main())

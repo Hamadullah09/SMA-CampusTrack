@@ -41,6 +41,8 @@ ios/
 *.jks
 *.keystore
 keys/
+# Base64 of a keystore is still the keystore.
+keystore-base64*.txt
 
 # Runtime artefacts
 logs/
