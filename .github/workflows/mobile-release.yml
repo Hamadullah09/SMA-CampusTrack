@@ -47,6 +47,30 @@ jobs:
           channel: stable
           cache: true
 
+      # Always runs, and reports only whether each secret is present, never its value.
+      # Without this a missing secret is invisible: the step that needs it is skipped, the
+      # job still reports success, and nothing anywhere says why.
+      - name: Report which secrets are configured
+        if: always()
+        run: |
+          {
+            echo "### Secrets"
+            echo ""
+            echo "| Secret | Set |"
+            echo "|---|---|"
+            echo "| ANDROID_KEYSTORE_BASE64 | ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && 'yes' || 'NO' }} |"
+            echo "| ANDROID_KEYSTORE_PASSWORD | ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' && 'yes' || 'NO' }} |"
+            echo "| ANDROID_KEY_ALIAS | ${{ secrets.ANDROID_KEY_ALIAS != '' && 'yes' || 'NO' }} |"
+            echo "| ANDROID_KEY_PASSWORD | ${{ secrets.ANDROID_KEY_PASSWORD != '' && 'yes' || 'NO' }} |"
+            echo "| PORTAL_ADMIN_PASSWORD | ${{ secrets.PORTAL_ADMIN_PASSWORD != '' && 'yes' || 'NO' }} |"
+            echo ""
+            echo "Publishing to the live portal requires PORTAL_ADMIN_PASSWORD. When it is"
+            echo "not set the build still succeeds and produces an artefact, but nothing is"
+            echo "published."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "PORTAL_ADMIN_PASSWORD set: ${{ secrets.PORTAL_ADMIN_PASSWORD != '' }}"
+
       - name: Resolve dependencies
         run: flutter pub get
 
