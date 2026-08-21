@@ -81,6 +81,7 @@ const NAV: NavSection[] = [
       { to: '/announcements', label: 'Announcements', icon: 'megaphone', permission: P.announcementsView },
       { to: '/events', label: 'School events', icon: 'calendar', permission: P.eventsView },
       { to: '/leave', label: 'Leave requests', icon: 'inbox', permission: P.leaveView },
+      { to: '/mobile-app', label: 'Mobile app', icon: 'download' },
     ],
   },
   {

@@ -119,3 +119,7 @@ public enum AuditAction { Create = 0, Update = 1, Delete = 2, Read = 3, Login = 
 public enum DeviceLogLevel { Info = 0, Warning = 1, Error = 2, Critical = 3 }
 
 public enum SettingDataType { String = 0, Integer = 1, Decimal = 2, Boolean = 3, Time = 4, Json = 5 }
+
+// ------------------------------------------------------- mobile distribution ----
+
+public enum MobilePlatform { Android = 0, IOS = 1 }

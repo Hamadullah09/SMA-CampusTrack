@@ -1,0 +1,165 @@
+/*
+ * Mobile app download.
+ *
+ * The download card is deliberately the heaviest thing on the page: for most people arriving
+ * here there is exactly one thing to do, and it should be unmissable. The install guide sits
+ * beside it rather than below, so the steps are readable without scrolling past the button.
+ */
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------- download ---- */
+
+.app-download {
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+}
+
+.app-icon {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
+}
+
+.app-download h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.app-version {
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.app-cta {
+  margin: var(--space-6) auto var(--space-2);
+  max-width: 20rem;
+  gap: var(--space-2);
+}
+
+/* The size rides along inside the button so nobody starts a 40 MB download on mobile data
+   without knowing what it costs them. */
+.app-size {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+  opacity: 0.75;
+}
+
+.app-empty-body {
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+}
+
+.app-notes {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.app-notes h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.app-notes p {
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.app-verify {
+  margin-top: var(--space-5);
+  text-align: left;
+}
+
+.app-verify summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-brand);
+}
+
+.app-verify p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: var(--space-2) 0;
+}
+
+.app-hash {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  /* A 64-character hash has no spaces to break on, so it is told explicitly to wrap. */
+  word-break: break-all;
+  color: var(--text-secondary);
+}
+
+.app-help {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-5);
+}
+
+/* ------------------------------------------------------------------- guide ---- */
+
+.app-guide h2 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-4);
+}
+
+.app-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-left: var(--space-5);
+  color: var(--text-secondary);
+}
+
+.app-steps li {
+  line-height: var(--leading-relaxed);
+}
+
+.app-steps strong {
+  color: var(--text-primary);
+}
+
+/* ----------------------------------------------------------------- history ---- */
+
+.app-history {
+  margin-top: var(--space-5);
+}
+
+.app-history h2 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-4);
+}
+
+/* -------------------------------------------------------------- responsive ---- */
+
+@media (max-width: 900px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+}

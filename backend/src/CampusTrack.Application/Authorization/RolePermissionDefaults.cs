@@ -61,6 +61,7 @@ public static class RolePermissionDefaults
             Permissions.Notifications.View, Permissions.Notifications.Send, Permissions.Notifications.Configure,
             Permissions.Announcements.View, Permissions.Announcements.Manage,
             Permissions.Events.View, Permissions.Events.Manage,
+            Permissions.MobileApp.Manage,
             Permissions.Leave.View, Permissions.Leave.Approve,
 
             Permissions.Reports.ViewAttendance, Permissions.Reports.ViewAcademic,

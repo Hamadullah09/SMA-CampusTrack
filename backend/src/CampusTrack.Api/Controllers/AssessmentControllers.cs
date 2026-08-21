@@ -190,7 +190,7 @@ public class AssignmentsController : ApiControllerBase
         if (file is null || file.Length == 0) throw DomainException.Invalid("No file was uploaded.");
 
         await using var stream = file.OpenReadStream();
-        var stored = await _files.SaveAsync(stream, file.FileName, $"assignments/{id}", ct);
+        var stored = await _files.SaveAsync(stream, file.FileName, $"assignments/{id}", ct: ct);
 
         var attachment = new AssignmentAttachment
         {
@@ -320,7 +320,7 @@ public class AssignmentsController : ApiControllerBase
         if (file is { Length: > 0 })
         {
             await using var stream = file.OpenReadStream();
-            var stored = await _files.SaveAsync(stream, file.FileName, $"submissions/{id}", ct);
+            var stored = await _files.SaveAsync(stream, file.FileName, $"submissions/{id}", ct: ct);
 
             _db.SubmissionFiles.Add(new SubmissionFile
             {

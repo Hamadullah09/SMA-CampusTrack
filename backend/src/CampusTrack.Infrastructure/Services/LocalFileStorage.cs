@@ -53,16 +53,20 @@ public class LocalFileStorage : IFileStorage
     }
 
     public async Task<StoredFile> SaveAsync(
-        Stream content, string originalFileName, string folder, CancellationToken ct = default)
+        Stream content, string originalFileName, string folder,
+        FileStoragePolicy? policy = null, CancellationToken ct = default)
     {
+        var allowed = policy?.AllowedExtensions ?? _options.AllowedExtensions;
+        var maxBytes = policy?.MaxFileSizeBytes ?? _options.MaxFileSizeBytes;
+
         var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
 
-        if (!_options.AllowedExtensions.Contains(extension))
+        if (!allowed.Contains(extension))
             throw new InvalidOperationException($"Files of type '{extension}' are not accepted.");
 
-        if (content.CanSeek && content.Length > _options.MaxFileSizeBytes)
+        if (content.CanSeek && content.Length > maxBytes)
             throw new InvalidOperationException(
-                $"That file is larger than the {_options.MaxFileSizeBytes / (1024 * 1024)} MB limit.");
+                $"That file is larger than the {maxBytes / (1024 * 1024)} MB limit.");
 
         // Date partitioning keeps directories to a manageable size; some file systems degrade
         // badly with tens of thousands of entries in one folder.

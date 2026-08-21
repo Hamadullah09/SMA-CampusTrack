@@ -56,9 +56,28 @@ public interface ITokenHasher
 }
 
 /// <summary>Stores uploaded files behind a provider-agnostic surface (local disk today, blob later).</summary>
+/// <summary>
+/// What a particular kind of upload is allowed to be.
+///
+/// The default policy is deliberately narrow -- documents and images a teacher might attach
+/// to an assignment. Some uploads legitimately need different rules: a signed Android build
+/// is an executable and far larger than any worksheet. Rather than widening the shared
+/// allow-list until it accepts everything, each call site states the policy it needs, so
+/// permission to attach a file to an assignment never becomes permission to upload a binary.
+/// </summary>
+public sealed record FileStoragePolicy(string[] AllowedExtensions, long MaxFileSizeBytes)
+{
+    /// <summary>Signed mobile builds published for families to sideload.</summary>
+    public static readonly FileStoragePolicy MobileRelease =
+        new([".apk", ".aab"], 200L * 1024 * 1024);
+}
+
 public interface IFileStorage
 {
-    Task<StoredFile> SaveAsync(Stream content, string originalFileName, string folder, CancellationToken ct = default);
+    /// <param name="policy">Null uses the configured default document policy.</param>
+    Task<StoredFile> SaveAsync(
+        Stream content, string originalFileName, string folder,
+        FileStoragePolicy? policy = null, CancellationToken ct = default);
     Task<Stream?> OpenAsync(string storedPath, CancellationToken ct = default);
     Task<bool> DeleteAsync(string storedPath, CancellationToken ct = default);
     bool Exists(string storedPath);

@@ -106,6 +106,7 @@ public class CampusTrackDbContext
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<AnnouncementTarget> AnnouncementTargets => Set<AnnouncementTarget>();
     public DbSet<SchoolEvent> SchoolEvents => Set<SchoolEvent>();
+    public DbSet<MobileAppRelease> MobileAppReleases => Set<MobileAppRelease>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<DailyStudentReport> DailyStudentReports => Set<DailyStudentReport>();
     public DbSet<GuardianFeedback> GuardianFeedbacks => Set<GuardianFeedback>();

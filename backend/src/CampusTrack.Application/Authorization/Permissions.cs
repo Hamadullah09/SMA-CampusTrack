@@ -174,6 +174,12 @@ public static class Permissions
         public const string Manage = "events.manage";
     }
 
+    /// <summary>Publishing builds of the mobile app that families sideload.</summary>
+    public static class MobileApp
+    {
+        public const string Manage = "mobileapp.manage";
+    }
+
     public static class Leave
     {
         public const string View = "leave.view";

@@ -1,0 +1,122 @@
+name: Deploy to campus.sma-techno.net
+
+# Deliberately manual by default. An FTP upload is not atomic -- the site is briefly serving
+# a half-replaced set of files -- so it should happen when someone is watching, not on every
+# merge. Flip `push:` on below once you are happy with the cadence.
+on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: 'Apply pending database migrations on first request after deploy'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  deploy:
+    name: Build and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # ---------------------------------------------------------------- web ----
+      # No VITE_API_BASE is set on purpose. The client falls back to the relative path
+      # /api/v1, so the same build works on any domain and reaches whichever API is
+      # serving it. Baking an absolute URL in here is how a build ends up pinned to the
+      # wrong environment.
+      - name: Build the web portal
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      # ---------------------------------------------------------------- api ----
+      - name: Publish the API
+        run: |
+          dotnet publish backend/src/CampusTrack.Api/CampusTrack.Api.csproj \
+            -c Release \
+            -r win-x64 --self-contained false \
+            -p:PublishSingleFile=false \
+            -o publish
+
+      - name: Assemble the site
+        run: |
+          # The API serves the SPA from wwwroot and falls back to index.html, so the two
+          # builds combine into one deployable tree rather than two sites.
+          mkdir -p publish/wwwroot
+          cp -r web/dist/* publish/wwwroot/
+
+          # dotnet publish writes its own web.config; ours carries the MIME types, upload
+          # limit and headers the product needs, so it wins.
+          cp deploy/iis/web.config publish/web.config
+
+          # Never ship developer settings to production: they carry a local connection
+          # string, a known admin password and a signing key that is public in this repo.
+          rm -f publish/appsettings.Development.json
+
+          echo "Deploying $(du -sh publish | cut -f1):"
+          ls publish | head -20
+
+      - name: Guard against shipping development settings
+        run: |
+          if [ -f publish/appsettings.Development.json ]; then
+            echo "::error::Development settings are present in the publish output."
+            exit 1
+          fi
+          if grep -rl "development-only-signing-key" publish 2>/dev/null | grep -q .; then
+            echo "::error::The development JWT signing key is present in the publish output."
+            exit 1
+          fi
+          echo "Clean."
+
+      # ---------------------------------------------------------------- ftp ----
+      # Credentials come from repository secrets and never touch a developer machine.
+      # Settings > Secrets and variables > Actions:
+      #   FTP_HOST, FTP_USER, FTP_PASSWORD
+      - name: Upload over FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./publish/
+          server-dir: ${{ vars.FTP_REMOTE_DIR || '/wwwroot/' }}
+          # The action keeps a manifest on the server and uploads only what changed, which
+          # turns a ~40 MB first deploy into seconds on subsequent runs.
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/logs/**
+            **/storage/**
+
+      # storage/ holds published APKs and assignment attachments, and logs/ is written by
+      # the running site. Both are excluded above so a deploy never deletes uploaded files.
+
+      - name: Verify the site responds
+        run: |
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://campus.sma-techno.net/health/live || echo 000)
+            echo "attempt $i: $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "::warning::The site did not return healthy within 150s. IIS may still be starting; check manually."

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/layouts/AppShell';
 import { useAuth } from '@/lib/auth';
 import { LoginPage } from '@/pages/Login';
+import { MobileAppPage } from '@/pages/MobileApp';
 import { AdminDashboard } from '@/pages/AdminDashboard';
 import { StudentsPage } from '@/pages/Students';
 import { TeacherDashboard } from '@/pages/TeacherDashboard';
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="/announcements" element={<ResourcePage config={announcementsResource} />} />
         <Route path="/events" element={<ResourcePage config={eventsResource} />} />
         <Route path="/leave" element={<ResourcePage config={leaveResource} />} />
+        <Route path="/mobile-app" element={<MobileAppPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
 
         {/* Administration */}

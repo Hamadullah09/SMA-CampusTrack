@@ -4,6 +4,7 @@ using CampusTrack.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CampusTrack.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CampusTrackDbContext))]
-    partial class CampusTrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821052934_MobileAppReleases")]
+    partial class MobileAppReleases
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

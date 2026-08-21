@@ -162,6 +162,7 @@ export const P = {
   announcementsManage: 'announcements.manage',
   eventsView: 'events.view',
   eventsManage: 'events.manage',
+  mobileAppManage: 'mobileapp.manage',
   leaveView: 'leave.view',
   leaveApprove: 'leave.approve',
   reportsAttendance: 'reports.attendance.view',

@@ -236,3 +236,21 @@ public class SystemSettingConfiguration : IEntityTypeConfiguration<SystemSetting
         b.HasIndex(x => x.Category);
     }
 }
+
+public class MobileAppReleaseConfiguration : IEntityTypeConfiguration<MobileAppRelease>
+{
+    public void Configure(EntityTypeBuilder<MobileAppRelease> b)
+    {
+        b.ToTable("mobile_app_releases");
+        b.Property(x => x.Version).HasMaxLength(40).IsRequired();
+        b.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+        b.Property(x => x.StoredPath).HasMaxLength(500).IsRequired();
+        b.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+        b.Property(x => x.ReleaseNotes).HasMaxLength(4000);
+
+        // The download endpoint looks up "the current build for this platform" on every
+        // request, so that lookup is indexed rather than scanned.
+        b.HasIndex(x => new { x.SchoolId, x.Platform, x.IsCurrent });
+        b.HasIndex(x => new { x.Platform, x.BuildNumber }).IsUnique();
+    }
+}
