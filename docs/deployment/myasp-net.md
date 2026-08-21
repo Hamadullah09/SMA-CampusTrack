@@ -38,8 +38,19 @@ plan, so it is worth asking before uploading 54 MB.
 | `PROD_CONNECTION_STRING` | MySQL details from the control panel |
 | `PROD_JWT_KEY` | Generate one: 64 random characters, never reused between environments |
 
-Optional: `PROD_ADMIN_PASSWORD` and `PROD_RFID_BOOTSTRAP_KEY`. Both are generated randomly
-when unset, so a missing value cannot leave a guessable administrator on a public site.
+`PROD_ADMIN_PASSWORD` is required too. It is used once, on the very first start against an
+empty database, to create the `admin` account. It is not generated: an earlier version did
+generate one, which produced a password nobody had seen, written into a file on the server,
+while every later deploy wrote a *different* one that the already-created administrator did
+not have. Locking yourself out of a freshly deployed site is a poor first experience.
+
+`PROD_RFID_BOOTSTRAP_KEY` stays optional and is generated when unset, because readers
+exchange it for their own key during enrolment and nobody ever types it.
+
+> **If you are already locked out**, the password the account was created with is in
+> `appsettings.Production.json` in the site root, under `Seed` → `AdminPassword`. Fetch it
+> over FTP. Setting the secret now will not help: seeding only runs against an empty
+> database, so it cannot change an administrator that already exists.
 
 The deploy finds the web root itself. It lists the FTP account root and uploads into
 `wwwroot/` when that exists, or into the account root when the account is already scoped to

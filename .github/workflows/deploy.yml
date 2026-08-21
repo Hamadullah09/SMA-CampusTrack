@@ -36,9 +36,10 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           PROD_CONNECTION_STRING: ${{ secrets.PROD_CONNECTION_STRING }}
           PROD_JWT_KEY: ${{ secrets.PROD_JWT_KEY }}
+          PROD_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
         run: |
           missing=""
-          for name in FTP_HOST FTP_USER FTP_PASSWORD PROD_CONNECTION_STRING PROD_JWT_KEY; do
+          for name in FTP_HOST FTP_USER FTP_PASSWORD PROD_CONNECTION_STRING PROD_JWT_KEY PROD_ADMIN_PASSWORD; do
             [ -z "${!name}" ] && missing="$missing $name"
           done
 
@@ -169,6 +170,8 @@ jobs:
           python3 - <<'PYEOF'
           import json, os, secrets, string
 
+          # Still used for the RFID bootstrap key, which is exchanged by readers for their
+          # own key on enrolment and never needs to be typed by a person.
           def rand(n=48):
               alphabet = string.ascii_letters + string.digits
               return ''.join(secrets.choice(alphabet) for _ in range(n))
@@ -191,9 +194,13 @@ jobs:
               "Seed": {
                   "AdminUserName": "admin",
                   "AdminEmail": "admin@sma-techno.net",
-                  # Only used the very first time, on an empty database. Generated rather
-                  # than defaulted so an unset secret cannot leave a guessable administrator.
-                  "AdminPassword": os.environ.get("PROD_ADMIN_PASSWORD") or rand(),
+                  # Used only on the very first start, against an empty database. It is a
+                  # required secret rather than a generated value: generating one produced a
+                  # password nobody had seen, written into a file on the server, and every
+                  # later deploy replaced it with a different one that the already-created
+                  # administrator did not have. Requiring it means the person deploying
+                  # always knows the credential they are creating.
+                  "AdminPassword": os.environ["PROD_ADMIN_PASSWORD"],
               },
               "School": {"Name": os.environ["PROD_SCHOOL_NAME"], "Code": "SMA"},
               "SchoolTime": {"TimeZoneId": os.environ["PROD_TIMEZONE"]},
