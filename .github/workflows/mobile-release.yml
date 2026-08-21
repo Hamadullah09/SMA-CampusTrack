@@ -27,6 +27,10 @@ jobs:
     # one is configured.
     env:
       HAS_SIGNING_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Job level, not step level. A step's own `env:` is not in scope for that step's
+      # `if:` -- the condition is evaluated before the step environment is built, so the
+      # flag reads as empty and the step silently never runs.
+      HAS_PORTAL_CREDENTIALS: ${{ secrets.PORTAL_ADMIN_PASSWORD != '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -129,7 +133,6 @@ jobs:
       - name: Publish to the live portal
         if: env.HAS_PORTAL_CREDENTIALS == 'true'
         env:
-          HAS_PORTAL_CREDENTIALS: ${{ secrets.PORTAL_ADMIN_PASSWORD != '' }}
           PORTAL_URL: ${{ vars.PORTAL_URL || 'https://campus.sma-techno.net' }}
           PORTAL_ADMIN_USER: ${{ vars.PORTAL_ADMIN_USER || 'admin' }}
           PORTAL_ADMIN_PASSWORD: ${{ secrets.PORTAL_ADMIN_PASSWORD }}
