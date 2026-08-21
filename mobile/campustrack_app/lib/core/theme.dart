@@ -68,7 +68,9 @@ class AppTheme {
         ),
       ),
 
-      cardTheme: CardTheme(
+      // CardThemeData, not CardTheme: ThemeData.cardTheme takes the data class, and
+      // passing the widget-flavoured CardTheme stopped compiling in Flutter 3.47.
+      cardTheme: CardThemeData(
         elevation: 0,
         color: scheme.surface,
         surfaceTintColor: Colors.transparent,

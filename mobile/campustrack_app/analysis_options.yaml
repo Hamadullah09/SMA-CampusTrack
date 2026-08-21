@@ -1,0 +1,25 @@
+# flutter_lints is a declared dev dependency but was doing nothing: without this file the
+# analyser falls back to its defaults and none of the lint rules are applied.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # The app is distributed to families, so an unhandled Future that silently swallows a
+    # failed request is worth failing the build over rather than filing under "info".
+    unawaited_futures: warning
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    # The API returns JSON that changes shape between versions; requiring an explicit type
+    # on every local would add noise without catching those.
+    - avoid_print
+    - prefer_const_constructors
+    - prefer_const_declarations

@@ -9,9 +9,16 @@ import 'api_client.dart';
 /// Everything the app needs is reachable from a provider, which is what lets a test swap the
 /// repository for a fake without touching a single widget.
 
-final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+/// These three providers reference one another: the client needs auth to sign the user
+/// out, auth needs the repository, and the repository needs the client. That is a legitimate
+/// runtime graph -- Riverpod resolves it lazily -- but Dart cannot *infer* the variables'
+/// types through the cycle, so each carries an explicit type annotation. Without them the
+/// analyser reports top_level_cycle and every `ref.watch` of them degrades to `dynamic`,
+/// which is what made the switch in main.dart non-exhaustive.
+final Provider<TokenStorage> tokenStorageProvider =
+    Provider<TokenStorage>((ref) => TokenStorage());
 
-final apiClientProvider = Provider<ApiClient>((ref) {
+final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(tokenStorageProvider);
 
   return ApiClient(
@@ -22,7 +29,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   );
 });
 
-final repositoryProvider = Provider<CampusRepository>((ref) => CampusRepository(
+final Provider<CampusRepository> repositoryProvider =
+    Provider<CampusRepository>((ref) => CampusRepository(
       api: ref.watch(apiClientProvider),
       storage: ref.watch(tokenStorageProvider),
     ));
@@ -106,7 +114,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+final StateNotifierProvider<AuthNotifier, AuthState> authProvider =
+    StateNotifierProvider<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(ref.watch(repositoryProvider)),
 );
 
