@@ -272,6 +272,27 @@ jobs:
       # than warns. An earlier version ended on `::warning::`, which exits zero: the site
       # was answering 500.34 on every route and the run still came up green. A deploy that
       # leaves the site broken and says otherwise is worse than one that simply fails.
+      # wwwroot is the application's own static-files folder. A web.config there registers
+      # the ASP.NET Core handler a second time and IIS refuses to run either app with
+      # HTTP 500.34. An early deploy created exactly that by uploading the publish output
+      # into wwwroot; this makes sure a deploy can never leave one behind again.
+      - name: Remove any nested web.config
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          creds="$FTP_USER:$FTP_PASSWORD"
+          target="${FTP_TARGET:-/}"
+
+          nested=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST${target}wwwroot/web.config" 2>/dev/null || echo "")
+          if [ -n "$nested" ]; then
+            echo "Removing stale ${target}wwwroot/web.config"
+            curl -sS --user "$creds" "ftp://$FTP_HOST${target}" -Q "DELE ${target}wwwroot/web.config" || true
+          else
+            echo "No nested web.config present."
+          fi
+
       - name: Verify the site responds
         run: |
           SITE=https://campus.sma-techno.net

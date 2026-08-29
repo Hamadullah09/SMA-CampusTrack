@@ -108,6 +108,73 @@ jobs:
             echo "::warning::Still $code after the offline toggle; the application pool itself needs recycling."
           fi
 
+      # ------------------------------------------------- remove nested config ----
+      # The real cause of the 500.34 here: an early deploy, before the FTP root was
+      # discovered rather than assumed, uploaded the whole publish output *into* wwwroot.
+      # wwwroot is this application's own static-files folder -- it holds index.html and
+      # the compiled assets and must never contain a web.config. The stale one left there
+      # registers the ASP.NET Core handler a second time, so IIS sees two applications in
+      # one pool and refuses to run either.
+      #
+      # Removing it is safe by construction: a web.config inside wwwroot is wrong whichever
+      # directory turns out to be the site root, and the guard below only acts when a
+      # web.config also exists at the level above it.
+      - name: Remove nested ASP.NET Core config
+        id: unnest
+        if: steps.probe.outputs.fault == 'hosting_model' && env.HAS_FTP == 'true'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+
+          root=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/web.config" 2>/dev/null || echo "")
+          nested=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/wwwroot/web.config" 2>/dev/null || echo "")
+
+          if [ -z "$nested" ]; then
+            echo "No nested wwwroot/web.config; nothing to clean."
+            echo "removed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$root" ]; then
+            # Only one config exists and it happens to live in wwwroot, so that directory is
+            # the site root rather than a static folder. Removing it would break the site.
+            echo "::warning::wwwroot/web.config is the only config present; leaving it alone."
+            echo "removed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Two ASP.NET Core configs found. Removing the nested one."
+          curl -sS --user "$creds" "ftp://$FTP_HOST/wwwroot/" -Q "DELE wwwroot/web.config"             || curl -sS --user "$creds" "ftp://$FTP_HOST/" -Q "DELE wwwroot/web.config"             || { echo "::error::Could not delete wwwroot/web.config"; exit 1; }
+
+          still=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/wwwroot/web.config" 2>/dev/null || echo "")
+          if [ -n "$still" ]; then
+            echo "::error::wwwroot/web.config is still present after the delete."
+            exit 1
+          fi
+
+          echo "::warning::Removed the nested wwwroot/web.config that was causing HTTP 500.34."
+          echo "removed=true" >> "$GITHUB_OUTPUT"
+
+          # The handler registration is read when the application starts, so nudge it.
+          printf '%s' '<html><body>Restarting.</body></html>' > /tmp/app_offline.htm
+          curl -sS --user "$creds" -T /tmp/app_offline.htm "ftp://$FTP_HOST/app_offline.htm" || true
+          sleep 15
+          curl -sS --user "$creds" "ftp://$FTP_HOST/" -Q "DELE app_offline.htm" || true
+          sleep 25
+
+          code=$(curl -s -o /tmp/after2.html -w '%{http_code}' --max-time 30 "$SITE/" || echo 000)
+          if [ "$code" = "200" ] && grep -q "SMA Campus Track" /tmp/after2.html; then
+            echo "fixed=true" >> "$GITHUB_OUTPUT"
+            echo "Site is serving again."
+          else
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Nested config removed but the pool still holds the old registration ($code); one recycle is needed to clear it, after which it should not recur."
+          fi
+
       # --------------------------------------------------------- diagnostics ----
       # Runs only when recovery failed, or on demand. Reports which web.config files exist
       # and what hosting model each declares. Values only, never credentials: this is the
@@ -170,6 +237,14 @@ jobs:
 
           if [ "$fault" = "none" ]; then
             echo "Healthy." && exit 0
+          fi
+
+          if [ "${{ steps.unnest.outputs.fixed }}" = "true" ]; then
+            echo "### Fixed: nested web.config removed" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "A stale \`wwwroot/web.config\` was registering the ASP.NET Core handler a" >> "$GITHUB_STEP_SUMMARY"
+            echo "second time. It has been removed and the site is serving again." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
           if [ "$recovered" = "true" ]; then
