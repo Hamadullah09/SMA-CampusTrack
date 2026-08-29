@@ -10,6 +10,10 @@ name: Site health and self-heal
 on:
   schedule:
     - cron: '*/10 * * * *'
+  # A tag trigger as well as the button: GitHub's scheduler can take an hour to pick up a
+  # newly added cron, and a push is the one trigger available without the Actions UI.
+  push:
+    tags: ['health-*']
   workflow_dispatch:
     inputs:
       force_diagnostics:
