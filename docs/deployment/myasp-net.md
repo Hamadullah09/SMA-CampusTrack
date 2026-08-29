@@ -114,6 +114,36 @@ build can never be upgraded in place by a properly signed one.
 
 ## When something is wrong
 
+**HTTP 500.34 "does not support mixing hosting models" — CONFIRMED CAUSE.**
+The site was placed in the hosting account's **ASP.NET 4.x** application pool
+(`smatechnologies-001`) alongside four unrelated sites (laundry-rfid, service, library,
+visionCart), while the account's two **.NET Core** pools (`-0nwo`, `-0udp`) host other
+apps. This application is .NET 10; running it in a pool whose other applications declare a
+different hosting model is exactly what IIS refuses, and no value of `hostingModel` in
+`web.config` can resolve it from our side.
+
+**Fix, in the hosting panel → Pool Manager:**
+
+1. Preferred — give `campus` its own pool. The RAM quota was fully allocated
+   (3072/3072 MB), so free some first: reduce `smatechnologies-001` from 1024 MB to
+   512 MB, then **+ Pool** → .NET Core (10.x) → 512 MB → assign `campus` to it.
+2. Quicker — move `campus` into an existing **.NET Core** pool (`smatechnologies-0nwo`,
+   which hosts fuelstore, or `-0udp`, which hosts storereplica) via *Actions* on the pool
+   or the website's pool assignment. This needs no extra RAM. It works as long as that
+   pool's other app uses the same hosting model; `inprocess` is the .NET Core default and
+   is what this app declares.
+
+After moving, the pool starts fresh and reads this app's configuration with nothing to
+clash against. If 500.34 somehow persists, the `Site health and self-heal` workflow prints
+each app's declared hosting model as run annotations — match ours to the neighbour's, or
+complete step 1 for a pool of our own.
+
+**A separate fault, already fixed:** an early deploy uploaded the publish output into
+`wwwroot`, this application's own static-files folder, leaving a second `web.config` there
+that registered the ASP.NET Core handler twice. That produced the same 500.34 independently
+of the pool. It has been removed, and both the deploy and the health check now strip any
+nested `web.config` so it cannot return.
+
 **The site returns 500.30 or a blank error page.** The app failed to start and the reason is
 only in stdout. Set `stdoutLogEnabled="true"` in `web.config`, reproduce, read
 `logs/stdout_*.log`, then set it back to `false`. On shared hosting that log has nothing
