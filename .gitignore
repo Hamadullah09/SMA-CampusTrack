@@ -65,3 +65,6 @@ Thumbs.db
 
 # Local scratch
 PROMPT.docx
+
+# The source archive must not be committed into the source it archives.
+DELIVERABLES/SOURCE_CODE_PACKAGE.zip

@@ -1,0 +1,170 @@
+name: Site health and self-heal
+
+# The production site sits in a shared IIS application pool. When the pool recycles and a
+# neighbouring app claims a different ASP.NET Core hosting model first, our app is refused
+# with HTTP 500.34 and the site is down until someone notices and restarts the pool.
+#
+# This watchdog closes that gap: it checks every 10 minutes, attempts the recovery that is
+# possible over FTP, and if that is not enough it gathers the evidence needed to fix the
+# cause for good rather than reporting "it broke again".
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_diagnostics:
+        description: 'Run the FTP diagnostics even if the site is healthy'
+        type: boolean
+        default: false
+
+concurrency:
+  group: site-health
+  cancel-in-progress: false
+
+env:
+  SITE: https://campus.sma-techno.net
+
+jobs:
+  check:
+    name: Check and heal
+    runs-on: ubuntu-latest
+
+    # A step's own env is not in scope for its own `if`, so the gate lives at job level.
+    env:
+      HAS_FTP: ${{ secrets.FTP_PASSWORD != '' }}
+
+    steps:
+      - name: Probe the site
+        id: probe
+        run: |
+          code=$(curl -s -o /tmp/body.html -w '%{http_code}' --max-time 30 "$SITE/" || echo 000)
+          echo "status=$code" >> "$GITHUB_OUTPUT"
+          echo "Site returned $code"
+
+          # 500.34 is the specific failure this workflow exists for. Anything else that is
+          # unhealthy is reported but not "healed", because the remedy would be different.
+          if grep -q "500.34" /tmp/body.html 2>/dev/null; then
+            echo "fault=hosting_model" >> "$GITHUB_OUTPUT"
+            echo "::warning::Site is down with HTTP 500.34 (hosting model clash)."
+          elif [ "$code" = "200" ] && grep -q "SMA Campus Track" /tmp/body.html 2>/dev/null; then
+            echo "fault=none" >> "$GITHUB_OUTPUT"
+            echo "Site is healthy and serving the portal."
+          else
+            echo "fault=other" >> "$GITHUB_OUTPUT"
+            echo "::warning::Site unhealthy (HTTP $code) but not the hosting-model fault."
+          fi
+
+      # ---------------------------------------------------------------- heal ----
+      # app_offline.htm makes the ASP.NET Core Module stop the application and serve that
+      # file instead; removing it starts the app again and the module re-reads web.config.
+      # This clears a stale application state. It cannot recycle the *pool* itself, which
+      # is why the diagnostics below run when it is not enough.
+      - name: Attempt recovery over FTP
+        id: heal
+        if: steps.probe.outputs.fault == 'hosting_model' && env.HAS_FTP == 'true'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+
+          # Find where the site actually lives, the same way the deploy does.
+          listing=$(curl -sS --list-only --connect-timeout 30 --user "$creds" "ftp://$FTP_HOST/" || echo "")
+          if echo "$listing" | grep -qx "wwwroot"; then base="wwwroot/"; else base=""; fi
+          echo "Site root: /$base"
+
+          printf '%s' '<html><body>Restarting, please wait.</body></html>' > /tmp/app_offline.htm
+
+          echo "Taking the app offline..."
+          curl -sS --user "$creds" -T /tmp/app_offline.htm "ftp://$FTP_HOST/${base}app_offline.htm" || true
+          sleep 20
+
+          echo "Bringing it back..."
+          curl -sS --user "$creds" "ftp://$FTP_HOST/${base}" -Q "DELE ${base}app_offline.htm" || \
+            curl -sS --user "$creds" "ftp://$FTP_HOST/${base}" -Q "DELE app_offline.htm" || true
+          sleep 25
+
+          code=$(curl -s -o /tmp/after.html -w '%{http_code}' --max-time 30 "$SITE/" || echo 000)
+          if [ "$code" = "200" ] && grep -q "SMA Campus Track" /tmp/after.html; then
+            echo "recovered=true" >> "$GITHUB_OUTPUT"
+            echo "Recovered: the site is serving again."
+          else
+            echo "recovered=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Still $code after the offline toggle; the application pool itself needs recycling."
+          fi
+
+      # --------------------------------------------------------- diagnostics ----
+      # Runs only when recovery failed, or on demand. Reports which web.config files exist
+      # and what hosting model each declares. Values only, never credentials: this is the
+      # evidence needed to tell the host exactly which apps are clashing.
+      - name: Diagnose the hosting-model clash
+        if: >
+          env.HAS_FTP == 'true' &&
+          (steps.heal.outputs.recovered == 'false' ||
+           github.event.inputs.force_diagnostics == 'true')
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+
+          {
+            echo "### Hosting-model diagnostics"
+            echo ""
+            echo "Every \`web.config\` reachable from this FTP account, with the hosting"
+            echo "model it declares. Two apps in one pool declaring different models is"
+            echo "exactly what produces HTTP 500.34."
+            echo ""
+            echo "| Path | hostingModel |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # One level down is enough: sibling sites and our own root are what matter.
+          roots=$(curl -sS --list-only --user "$creds" "ftp://$FTP_HOST/" || echo "")
+          for dir in "" $roots; do
+            path="${dir:+$dir/}"
+            body=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/${path}web.config" 2>/dev/null || echo "")
+            [ -z "$body" ] && continue
+
+            model=$(printf '%s' "$body" | grep -o 'hostingModel="[a-z]*"' | head -1 | cut -d'"' -f2)
+            [ -z "$model" ] && model="(not declared - defaults to inprocess)"
+            echo "| \`/${path}web.config\` | $model |" >> "$GITHUB_STEP_SUMMARY"
+            echo "Found /${path}web.config -> $model"
+          done
+
+          {
+            echo ""
+            echo "**If more than one row appears with different models**, those apps share a"
+            echo "pool and cannot both run. Either align them, or ask the host to move"
+            echo "campus.sma-techno.net to its own application pool:"
+            echo ""
+            echo "> My ASP.NET Core site campus.sma-techno.net returns HTTP 500.34"
+            echo "> \"does not support mixing hosting models\". Please move it to a"
+            echo "> dedicated application pool."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report
+        if: always()
+        run: |
+          fault="${{ steps.probe.outputs.fault }}"
+          recovered="${{ steps.heal.outputs.recovered }}"
+
+          if [ "$fault" = "none" ]; then
+            echo "Healthy." && exit 0
+          fi
+
+          if [ "$recovered" = "true" ]; then
+            echo "### Site recovered automatically" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "It was down with HTTP 500.34 and is serving again. The underlying cause" >> "$GITHUB_STEP_SUMMARY"
+            echo "(shared application pool) remains - see the deployment document." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Fails so the run is visibly red and GitHub emails the repository owner.
+          echo "::error::Site is down (fault: $fault) and could not be recovered automatically. A pool recycle is required."
+          exit 1
