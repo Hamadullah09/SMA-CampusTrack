@@ -84,12 +84,17 @@ public class LocalFileStorage : IFileStorage
 
         var info = new FileInfo(absolutePath);
 
-        if (info.Length > _options.MaxFileSizeBytes)
+        if (info.Length > maxBytes)
         {
-            // Non-seekable streams only reveal their size after the copy.
+            // Non-seekable streams only reveal their size after the copy. This must use the
+            // same limit as the check above: reading the configured default here instead
+            // meant a caller-supplied policy raised the limit for the pre-copy check and not
+            // for this one, so anything between the two limits was written to disk and then
+            // rejected -- which is how a 57 MB release APK failed against the 25 MB default
+            // despite the mobile-release policy allowing 200 MB.
             File.Delete(absolutePath);
             throw new InvalidOperationException(
-                $"That file is larger than the {_options.MaxFileSizeBytes / (1024 * 1024)} MB limit.");
+                $"That file is larger than the {maxBytes / (1024 * 1024)} MB limit.");
         }
 
         var storedPath = Path.Combine(relativeFolder, storedName).Replace('\\', '/');
