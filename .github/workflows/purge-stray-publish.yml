@@ -1,0 +1,112 @@
+name: Purge stray publish output
+
+# Removes a duplicate copy of the published application that deploys placed inside the
+# running site's wwwroot folder.
+#
+# How it happened: the deploy detects the web root by listing the FTP account root and
+# uploading into wwwroot/ when it sees one. Here the account root IS the site root -- it
+# holds web.config, logs/, storage/ and the application binaries -- and the wwwroot it
+# contains is this application's own static-files folder. So every deploy since that
+# detection was added wrote the whole publish output into the folder the site serves to
+# the public.
+#
+# Two consequences. wwwroot/appsettings.Production.json was downloadable over HTTP,
+# because static files are exactly what wwwroot is for; it carries the database
+# connection string, the JWT signing key and the seeded administrator password.
+# wwwroot/web.config also registers the ASP.NET Core handler a second time, which is what
+# produced HTTP 500.34 before.
+#
+# This deletes only files that have no business in a static folder and that exist in
+# their correct place one directory up. It never touches index.html, assets/ or brand/,
+# which are the real static payload.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['purge-*']
+
+jobs:
+  purge:
+    name: Remove the duplicate
+    runs-on: ubuntu-latest
+
+    env:
+      HAS_FTP: ${{ secrets.FTP_PASSWORD != '' }}
+
+    steps:
+      - name: Delete the stray files
+        if: env.HAS_FTP == 'true'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+
+          # Refuse to run unless the layout is the one described above: the application
+          # must be at the account root, so that wwwroot is provably a static folder and
+          # not the site itself. Deleting from the wrong directory would take the site down.
+          root=$(curl -sS --list-only --connect-timeout 30 --user "$creds" "ftp://$FTP_HOST/" || echo "")
+          echo "$root" | grep -qx "web.config"        || { echo "::error::No web.config at the account root -- the layout is not what this workflow expects. Stopping rather than deleting from the wrong place."; exit 1; }
+          echo "$root" | grep -qx "CampusTrack.Api.dll" || { echo "::error::No CampusTrack.Api.dll at the account root -- the application does not run from here. Stopping."; exit 1; }
+          echo "$root" | grep -qx "wwwroot"           || { echo "Nothing to do: there is no wwwroot folder."; exit 0; }
+
+          echo "Layout confirmed: the application runs from the account root."
+
+          # Named individually. No wildcards, so nothing unexpected can be caught.
+          stray="appsettings.Production.json appsettings.json web.config CampusTrack.Api.deps.json CampusTrack.Api.runtimeconfig.json CampusTrack.Api.staticwebassets.endpoints.json"
+
+          removed=""
+          for f in $stray; do
+            present=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/wwwroot/$f" 2>/dev/null || echo "")
+            if [ -z "$present" ]; then
+              echo "not present: wwwroot/$f"
+              continue
+            fi
+
+            if curl -sS --user "$creds" "ftp://$FTP_HOST/wwwroot/" -Q "DELE /wwwroot/$f" >/dev/null 2>&1; then
+              echo "deleted: wwwroot/$f"
+              removed="$removed $f"
+            else
+              echo "::error::Could not delete wwwroot/$f"
+            fi
+          done
+
+          echo "Confirming they are gone..."
+          failed=0
+          for f in $stray; do
+            still=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST/wwwroot/$f" 2>/dev/null || echo "")
+            if [ -n "$still" ]; then
+              echo "::error::wwwroot/$f is STILL present."
+              failed=1
+            fi
+          done
+
+          # The settings file is the one that matters, so check it over HTTP as well: that
+          # is the path an outsider would have used.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://campus.sma-techno.net/appsettings.Production.json" || echo 000)
+          echo "GET /appsettings.Production.json now returns $code"
+          if [ "$code" = "200" ]; then
+            echo "::error::appsettings.Production.json is still downloadable over HTTP."
+            failed=1
+          fi
+
+          {
+            echo "### Stray publish output"
+            echo ""
+            echo "Removed from \`/wwwroot/\`:\`$removed\`"
+            echo ""
+            echo "\`GET /appsettings.Production.json\` now returns **$code**."
+            echo ""
+            echo "**The credentials in that file must still be treated as exposed and rotated.**"
+            echo "Removing the file stops further access; it does not undo access already had."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit $failed
+
+      - name: Explain a missing configuration
+        if: env.HAS_FTP != 'true'
+        run: |
+          echo "::error::FTP_PASSWORD is not set, so there is no way to reach the server."
+          exit 1

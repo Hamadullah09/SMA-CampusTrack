@@ -85,12 +85,28 @@ jobs:
 
           echo "$listing"
 
-          # Prefer a wwwroot if the account root has one; otherwise the account is already
-          # scoped to the site and files belong at its root.
-          if echo "$listing" | grep -qx "wwwroot"; then
+          # Which directory is the site?
+          #
+          # "The account root has a wwwroot, so upload into it" is wrong here, and was wrong
+          # for months. This account's root IS the site root -- it holds web.config, logs/,
+          # storage/ and the application binaries -- and the wwwroot inside it is this
+          # application's own static-files folder. Uploading there put a second copy of the
+          # whole publish output into the folder the site serves to the public, which left
+          # appsettings.Production.json downloadable over HTTP and a web.config registering
+          # the ASP.NET Core handler twice.
+          #
+          # A web.config at the account root settles it: that is where an IIS application
+          # lives, so the account is already scoped to the site. Only when the root has no
+          # application in it does a wwwroot mean "the site is in here".
+          if echo "$listing" | grep -qx "web.config"; then
+            target="/"
+            echo "The account root holds web.config, so it is the site root."
+          elif echo "$listing" | grep -qx "wwwroot"; then
             target="/wwwroot/"
+            echo "No application at the account root; deploying into its wwwroot."
           else
             target="/"
+            echo "No wwwroot and no web.config yet; treating the account root as the site."
           fi
 
           echo "Deploying to: $target"
