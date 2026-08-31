@@ -1,0 +1,99 @@
+name: Fetch server logs
+
+# The production site writes Serilog output to logs/campustrack-<date>.log on the server,
+# and every deploy excludes that folder so it survives. When the API answers HTTP 500 the
+# response carries only a traceId -- deliberately, since the detail belongs in the log and
+# not in a response body -- so this is how the matching stack trace is retrieved.
+#
+# Read-only. It downloads a log and prints it; it changes nothing on the server.
+#
+# The output is a stack trace from a running system: file paths, SQL, and whatever
+# arguments appear in an exception message. Treat a run of this workflow as internal.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lines:
+        description: 'How many lines from the end of the log to print'
+        required: false
+        default: '150'
+      filter:
+        description: 'Only print lines matching this (leave blank for the plain tail)'
+        required: false
+        default: ''
+  push:
+    tags: ['logs-*']
+
+jobs:
+  fetch:
+    name: Fetch and print
+    runs-on: ubuntu-latest
+
+    env:
+      HAS_FTP: ${{ secrets.FTP_PASSWORD != '' }}
+
+    steps:
+      - name: Fetch the newest log
+        if: env.HAS_FTP == 'true'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          LINES: ${{ github.event.inputs.lines || '150' }}
+          FILTER: ${{ github.event.inputs.filter }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+
+          # Same web-root discovery the deploy uses, so this reads the directory the site
+          # actually runs from rather than an assumed one.
+          root=$(curl -sS --list-only --connect-timeout 30 --user "$creds" "ftp://$FTP_HOST/" || echo "")
+          if echo "$root" | grep -qx "wwwroot"; then base="/wwwroot/"; else base="/"; fi
+          echo "Site root: $base"
+
+          listing=$(curl -sS --list-only --max-time 30 --user "$creds" "ftp://$FTP_HOST${base}logs/" 2>/dev/null || echo "")
+          if [ -z "$listing" ]; then
+            echo "::error::No logs/ directory under $base. Either the site has not written a log yet, or the root was detected wrongly."
+            exit 1
+          fi
+
+          echo "Logs present:"
+          echo "$listing"
+
+          newest=$(echo "$listing" | grep '^campustrack-.*\.log$' | sort | tail -1)
+          if [ -z "$newest" ]; then
+            echo "::error::No campustrack-*.log in ${base}logs/. Files present are listed above."
+            exit 1
+          fi
+
+          echo "Downloading $newest"
+          curl -sS --fail --max-time 120 --user "$creds" "ftp://$FTP_HOST${base}logs/$newest" -o server.log
+
+          echo "Downloaded $(wc -l < server.log) lines, $(du -h server.log | cut -f1)"
+
+          if [ -n "$FILTER" ]; then
+            grep -- "$FILTER" server.log | tail -n "$LINES" > excerpt.txt || true
+          else
+            tail -n "$LINES" server.log > excerpt.txt
+          fi
+
+          {
+            echo "### $newest"
+            echo ""
+            echo "Last $LINES lines${FILTER:+ matching \`$FILTER\`} from \`${base}logs/$newest\`."
+            echo ""
+            echo '```'
+            cat excerpt.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Also to the console, so the trace is readable in the run log itself.
+          echo "----- begin excerpt -----"
+          cat excerpt.txt
+          echo "----- end excerpt -----"
+
+      - name: Explain a missing configuration
+        if: env.HAS_FTP != 'true'
+        run: |
+          echo "::error::FTP_PASSWORD is not set, so there is no way to reach the server. Add the FTP secrets under Settings > Secrets and variables > Actions."
+          exit 1
