@@ -94,8 +94,18 @@ What it does:
 4. **Deletes `appsettings.Development.json`**, then fails the build if it or the development
    signing key survived. `dotnet publish` includes that file by default, and it carries a
    local connection string, a known admin password and a public signing key.
-5. Uploads changed files only. `storage/` and `logs/` are excluded, so published APKs and
-   assignment attachments are never deleted by a deploy.
+5. Puts `app_offline.htm` at the site root, uploads changed files, then removes it.
+   `storage/` and `logs/` are excluded, so published APKs and assignment attachments are
+   never deleted by a deploy.
+
+   The offline file is not decoration. The ASP.NET Core Module restarts the application
+   when `web.config` changes and only then, so a deploy that changes nothing but
+   assemblies used to leave the previous code running: new DLLs on disk, the old ones
+   still loaded, and a green deploy. Removing `app_offline.htm` starts the app again and
+   it loads what is now on disk. It also means no assembly is locked while being replaced.
+
+   The site serves a maintenance page for the length of the upload, a few seconds for the
+   usual delta.
 6. Polls `/health/live` until the site answers.
 
 ## Publishing the mobile app

@@ -243,6 +243,37 @@ jobs:
             exit 1
           fi
           echo "Clean."
+      # ------------------------------------------------------- restart the app ----
+      # The ASP.NET Core Module restarts the application when web.config changes, and only
+      # then. A deploy that changes nothing but assemblies therefore leaves the previous
+      # code running: the new DLLs sit on disk, the worker keeps serving what it already
+      # loaded, and the deploy reports success. That is how a fix to the upload size limit
+      # shipped, passed every check, and still answered from the old code.
+      #
+      # app_offline.htm is the supported way to say otherwise. The module stops the app and
+      # serves that file instead; removing it starts the app again, which loads whatever is
+      # now on disk. Taking it down before the upload also means no assembly is locked while
+      # it is being replaced.
+      #
+      # The site is down for the length of the upload. That is a few seconds for the usual
+      # delta, and it is honest: an FTP upload is not atomic, so mid-upload the site was
+      # already serving a half-replaced set of files rather than a clear maintenance page.
+      - name: Take the app offline
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          target="${FTP_TARGET:-/}"
+          printf '%s' '<html><head><title>Updating</title></head><body><h1>SMA Campus Track is updating</h1><p>This takes about a minute. Please try again shortly.</p></body></html>' > offline.htm
+
+          curl -sS --fail --connect-timeout 30 --user "$FTP_USER:$FTP_PASSWORD" \
+            -T offline.htm "ftp://$FTP_HOST${target}app_offline.htm"
+
+          echo "App is offline; waiting for the worker to drain."
+          sleep 8
+
 
       # ---------------------------------------------------------------- ftp ----
       # Credentials come from repository secrets and never touch a developer machine.
@@ -292,6 +323,32 @@ jobs:
           else
             echo "No nested web.config present."
           fi
+
+      # Removing app_offline.htm starts the application again, and it loads the assemblies
+      # that were just uploaded. `if: always()` matters: if an earlier step fails the site
+      # must still come back, rather than being left showing the maintenance page.
+      - name: Bring the app back online
+        if: always()
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -u
+          creds="$FTP_USER:$FTP_PASSWORD"
+          target="${FTP_TARGET:-/}"
+
+          curl -sS --user "$creds" "ftp://$FTP_HOST${target}" -Q "DELE ${target}app_offline.htm" \
+            || curl -sS --user "$creds" "ftp://$FTP_HOST${target}" -Q "DELE app_offline.htm" \
+            || true
+
+          still=$(curl -sS --max-time 25 --user "$creds" "ftp://$FTP_HOST${target}app_offline.htm" 2>/dev/null || echo "")
+          if [ -n "$still" ]; then
+            echo "::error::app_offline.htm is still present -- the site is showing the maintenance page. Delete ${target}app_offline.htm over FTP."
+            exit 1
+          fi
+
+          echo "App is back online; it will load the newly uploaded assemblies on the next request."
 
       - name: Verify the site responds
         run: |
