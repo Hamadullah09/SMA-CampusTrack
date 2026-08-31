@@ -51,9 +51,40 @@ jobs:
           if echo "$root" | grep -qx "wwwroot"; then base="/wwwroot/"; else base="/"; fi
           echo "Site root: $base"
 
-          listing=$(curl -sS --list-only --max-time 30 --user "$creds" "ftp://$FTP_HOST${base}logs/" 2>/dev/null || echo "")
-          if [ -z "$listing" ]; then
-            echo "::error::No logs/ directory under $base. Either the site has not written a log yet, or the root was detected wrongly."
+          # Print the layout before assuming anything about it. The first run of this
+          # workflow failed on "no logs/ directory", which is a statement about where it
+          # looked rather than about the server.
+          {
+            echo "### Server layout"
+            echo ""
+            echo "Account root:"
+            echo '```'
+            echo "$root"
+            echo '```'
+            echo ""
+            echo "Site root ($base):"
+            echo '```'
+            curl -sS --list-only --max-time 30 --user "$creds" "ftp://$FTP_HOST${base}" 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Look for a logs directory in both candidate roots rather than only the detected
+          # one: Serilog writes to a path relative to the process working directory, which
+          # is not guaranteed to be the directory the deploy uploads into.
+          logdir=""
+          for candidate in "${base}logs/" "/logs/" "/wwwroot/logs/"; do
+            found=$(curl -sS --list-only --max-time 30 --user "$creds" "ftp://$FTP_HOST${candidate}" 2>/dev/null || echo "")
+            if [ -n "$found" ]; then
+              echo "Found logs at $candidate"
+              logdir="$candidate"
+              listing="$found"
+              break
+            fi
+            echo "Nothing at $candidate"
+          done
+
+          if [ -z "$logdir" ]; then
+            echo "::error::No logs directory found in any candidate location. The site layout is printed in the run summary; the application has written no log file, which is itself the finding."
             exit 1
           fi
 
@@ -62,12 +93,12 @@ jobs:
 
           newest=$(echo "$listing" | grep '^campustrack-.*\.log$' | sort | tail -1)
           if [ -z "$newest" ]; then
-            echo "::error::No campustrack-*.log in ${base}logs/. Files present are listed above."
+            echo "::error::No campustrack-*.log in $logdir. Files present are listed above."
             exit 1
           fi
 
           echo "Downloading $newest"
-          curl -sS --fail --max-time 120 --user "$creds" "ftp://$FTP_HOST${base}logs/$newest" -o server.log
+          curl -sS --fail --max-time 120 --user "$creds" "ftp://$FTP_HOST${logdir}${newest}" -o server.log
 
           echo "Downloaded $(wc -l < server.log) lines, $(du -h server.log | cut -f1)"
 
@@ -80,7 +111,7 @@ jobs:
           {
             echo "### $newest"
             echo ""
-            echo "Last $LINES lines${FILTER:+ matching \`$FILTER\`} from \`${base}logs/$newest\`."
+            echo "Last $LINES lines${FILTER:+ matching \`$FILTER\`} from \`${logdir}${newest}\`."
             echo ""
             echo '```'
             cat excerpt.txt
