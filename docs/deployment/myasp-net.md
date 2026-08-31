@@ -114,35 +114,35 @@ build can never be upgraded in place by a properly signed one.
 
 ## When something is wrong
 
-**HTTP 500.34 "does not support mixing hosting models" — CONFIRMED CAUSE.**
-The site was placed in the hosting account's **ASP.NET 4.x** application pool
+**HTTP 500.34 "does not support mixing hosting models" — RESOLVED.**
+The site had been placed in the hosting account's **ASP.NET 4.x** application pool
 (`smatechnologies-001`) alongside four unrelated sites (laundry-rfid, service, library,
-visionCart), while the account's two **.NET Core** pools (`-0nwo`, `-0udp`) host other
-apps. This application is .NET 10; running it in a pool whose other applications declare a
-different hosting model is exactly what IIS refuses, and no value of `hostingModel` in
-`web.config` can resolve it from our side.
+visionCart). This application is .NET 10. IIS reads the hosting model once, when the pool
+starts, and refuses to run two applications in one pool under different models — so no
+value of `hostingModel` in `web.config` could fix it from our side. Matching the neighbour
+with `outofprocess` only worked for as long as the pool did not recycle.
 
-**Fix, in the hosting panel → Pool Manager:**
+It now runs in **`smatechnologies-0lbi`**, a 512 MB .NET Core pool of its own, and
+`web.config` declares `inprocess`.
 
-1. Preferred — give `campus` its own pool. The RAM quota was fully allocated
-   (3072/3072 MB), so free some first: reduce `smatechnologies-001` from 1024 MB to
-   512 MB, then **+ Pool** → .NET Core (10.x) → 512 MB → assign `campus` to it.
-2. Quicker — move `campus` into an existing **.NET Core** pool (`smatechnologies-0nwo`,
-   which hosts fuelstore, or `-0udp`, which hosts storereplica) via *Actions* on the pool
-   or the website's pool assignment. This needs no extra RAM. It works as long as that
-   pool's other app uses the same hosting model; `inprocess` is the .NET Core default and
-   is what this app declares.
+**If it ever returns**, the site has been moved back into a shared pool. In the hosting
+panel:
 
-After moving, the pool starts fresh and reads this app's configuration with nothing to
-clash against. If 500.34 somehow persists, the `Site health and self-heal` workflow prints
-each app's declared hosting model as run annotations — match ours to the neighbour's, or
-complete step 1 for a pool of our own.
+- **Pool Manager** (Websites → *Pool* → Manage Pool) shows each pool's runtime and the
+  websites in it. `campus` must be the only entry against its pool.
+- To move it: **Websites → campus → ⋯ → Application Pool → Change To → Submit.** The change
+  goes through a work queue and takes a few minutes; the pool list keeps showing the old
+  assignment until it completes.
+- A new pool defaults to **ASP.NET 4.x, Integrated**. Set it to .NET Core from
+  *Actions → Change to .Net Core* before assigning the site.
+- Sharing a pool is survivable only if every application in it declares the same model.
+  A pool of our own is what makes `inprocess` safe.
 
-**A separate fault, already fixed:** an early deploy uploaded the publish output into
-`wwwroot`, this application's own static-files folder, leaving a second `web.config` there
-that registered the ASP.NET Core handler twice. That produced the same 500.34 independently
-of the pool. It has been removed, and both the deploy and the health check now strip any
-nested `web.config` so it cannot return.
+**A separate fault with the same symptom, also fixed:** an early deploy uploaded the publish
+output into `wwwroot`, this application's own static-files folder, leaving a second
+`web.config` there that registered the ASP.NET Core handler twice. That produced 500.34
+independently of the pool. Both the deploy and the health check now strip any nested
+`web.config` so it cannot return.
 
 **The site returns 500.30 or a blank error page.** The app failed to start and the reason is
 only in stdout. Set `stdoutLogEnabled="true"` in `web.config`, reproduce, read

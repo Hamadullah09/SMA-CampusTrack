@@ -1,21 +1,20 @@
 name: Site health and self-heal
 
-# The production site sits in a shared IIS application pool. When the pool recycles and a
-# neighbouring app claims a different ASP.NET Core hosting model first, our app is refused
-# with HTTP 500.34 and the site is down until someone notices and restarts the pool.
+# A watchdog for campus.sma-techno.net.
 #
-# This watchdog closes that gap in two ways.
+# It was written for HTTP 500.34: the site used to share an ASP.NET 4.x application pool
+# with four unrelated apps, and IIS refuses to run two hosting models in one pool. The site
+# now has a .NET Core pool of its own, so that specific fault should not recur -- but the
+# check still looks for it, because the way it would come back is somebody moving the site
+# into a shared pool again, and the symptom would be identical.
 #
-# First, prevention. The hosting model is claimed by whichever app loads first into a fresh
-# pool, so the failure is a race our app loses when it happens to be idle. Out-of-process
-# ran fine for as long as our app stayed warm after a manual recycle, and broke on the next
-# idle recycle. Probing every five minutes keeps the pool from going idle at all, which
-# removes most opportunities for the race to occur. GitHub's scheduler is best effort and
-# does skip runs under load, so this reduces the failure rate rather than guaranteeing it.
+# Probing every five minutes also keeps the pool from going idle, so the first visitor of
+# the morning does not pay for a cold start. GitHub's scheduler is best effort and skips
+# runs under load, so treat that as a nicety rather than a guarantee.
 #
-# Second, response: on a fault it attempts the recovery that is possible over FTP, and when
-# that is not enough it reports which apps declare which hosting model, so the cause can be
-# named to the host rather than guessed at.
+# On a fault it attempts the recovery that is possible over FTP, and when that is not
+# enough it reports which apps declare which hosting model, so the cause can be named to
+# the host rather than guessed at.
 on:
   schedule:
     - cron: '*/5 * * * *'
